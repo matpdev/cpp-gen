@@ -60,10 +60,12 @@ jobs:
       # If AUR_KEY is absent the AUR publisher is skipped via --skip=aurs.
       - name: Setup AUR key
         id: aur
+        env:
+          AUR_KEY_CONTENT: ${{ secrets.AUR_KEY }}
         run: |
-          if [ -n "${{ secrets.AUR_KEY }}" ]; then
+          if [ -n "$AUR_KEY_CONTENT" ]; then
             mkdir -p ~/.ssh
-            printf '%s' "${{ secrets.AUR_KEY }}" > ~/.ssh/aur_key
+            echo "$AUR_KEY_CONTENT" > ~/.ssh/aur_key
             chmod 600 ~/.ssh/aur_key
             echo "key_path=$HOME/.ssh/aur_key" >> "$GITHUB_OUTPUT"
             echo "goreleaser_args=release --clean"  >> "$GITHUB_OUTPUT"
