@@ -12,6 +12,7 @@
 #   make snapshot     → local multi-platform build with goreleaser (without publishing)
 #   make changelog    → generates/updates CHANGELOG.md via git-cliff
 #   make aur-update   → updates aur/PKGBUILD version and regenerates .SRCINFO
+#   make aur-publish  → publishes cpp-gen-bin to the AUR (requires SSH key)
 #   make help         → displays this message
 # ==============================================================================
 
@@ -61,7 +62,7 @@ GRAY    := \033[90m
 
 .DEFAULT_GOAL := build
 
-.PHONY: build install install-global uninstall clean release snapshot changelog aur-update help
+.PHONY: build install install-global uninstall clean release snapshot changelog aur-update aur-publish help
 
 # ── build ─────────────────────────────────────────────────────────────────────
 ## Compiles the binary to ./dist/cpp-gen
@@ -213,6 +214,19 @@ aur-update:
 	@printf "       $(YELLOW)git -C aur push origin master$(RESET)\n\n"
 	@printf "  $(GRAY)Publicação automática via CI: o goreleaser cuida dos passos acima\n"
 	@printf "  usando o secret AUR_KEY a cada nova tag de release.$(RESET)\n\n"
+
+# ── aur-publish ───────────────────────────────────────────────────────────────
+## Publishes cpp-gen-bin to the AUR using scripts/aur-publish.sh
+aur-publish:
+	@printf "$(BOLD)$(CYAN)  AUR$(RESET)        publicando v$(VERSION) no AUR...\n"
+	@if [ ! -f scripts/aur-publish.sh ]; then \
+		printf "$(RED)  ✗ scripts/aur-publish.sh não encontrado.$(RESET)\n"; exit 1; \
+	fi
+	@bash scripts/aur-publish.sh --version $(VERSION)
+
+## Publishes to AUR without confirmation prompt
+aur-publish-yes:
+	@bash scripts/aur-publish.sh --version $(VERSION) --yes
 
 # ── help ──────────────────────────────────────────────────────────────────────
 ## Displays all available targets
