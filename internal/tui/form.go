@@ -76,7 +76,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	groupTechnical := huh.NewGroup(
 		huh.NewNote().
 			Title("Configurações C++").
-			Description("Defina o padrão da linguagem, tipo de artefato e estrutura de pastas."),
+			Description("Defina o padrão da linguagem e o tipo de artefato gerado pelo CMake."),
 
 		huh.NewSelect[string]().
 			Title("Padrão C++").
@@ -97,17 +97,26 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				huh.NewOption("Header-Only      — add_library(INTERFACE)", string(config.TypeHeaderOnly)),
 			).
 			Value(&projectType),
+	)
+
+	// ── Grupo 3: Layout de Pastas ─────────────────────────────────────────────
+	groupLayout := huh.NewGroup(
+		huh.NewNote().
+			Title("Layout de Pastas").
+			Description("Escolha como os arquivos do projeto serão organizados.\nSelecione uma opção para ver a estrutura de diretórios correspondente."),
 
 		huh.NewSelect[string]().
-			Title("Layout de pastas").
-			Description("Convenção de organização de diretórios e headers do projeto.").
+			Title("Estrutura de diretórios").
+			DescriptionFunc(func() string {
+				return config.FolderLayout(layout).TreePreview()
+			}, &layout).
 			Options(
 				huh.NewOption(
 					"Separate  — include/<nome>/ + src/  (clássico CMake)",
 					string(config.LayoutSeparate),
 				),
 				huh.NewOption(
-					"Merged    — <nome>/  headers e .cpp juntos  (Pitchfork/P1204R0)",
+					"Merged    — <nome>/  headers e .cpp juntos  (Pitchfork)",
 					string(config.LayoutMerged),
 				),
 				huh.NewOption(
@@ -126,7 +135,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&layout),
 	)
 
-	// ── Grupo 3: Gerenciador de Pacotes ───────────────────────────────────────
+	// ── Grupo 4: Gerenciador de Pacotes ───────────────────────────────────────
 	groupPackages := huh.NewGroup(
 		huh.NewNote().
 			Title("Gerenciador de Pacotes").
@@ -143,7 +152,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&pkgManager),
 	)
 
-	// ── Grupo 4: Ambiente de Desenvolvimento ──────────────────────────────────
+	// ── Grupo 5: Ambiente de Desenvolvimento ──────────────────────────────────
 	groupIDE := huh.NewGroup(
 		huh.NewNote().
 			Title("IDE e Ferramentas").
@@ -187,6 +196,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	form := huh.NewForm(
 		groupIdentity,
 		groupTechnical,
+		groupLayout,
 		groupPackages,
 		groupIDE,
 	).

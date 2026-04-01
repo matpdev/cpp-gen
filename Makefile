@@ -70,21 +70,45 @@ build:
 # ── install ───────────────────────────────────────────────────────────────────
 ## Instala o binário em ~/.local/bin (sem necessidade de sudo)
 install: build
-	@printf "\n$(BOLD)$(CYAN)  Installing$(RESET) $(BINARY) → $(INSTALL_DIR)/$(BINARY)\n"
 	@mkdir -p $(INSTALL_DIR)
-	@cp $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR)/$(BINARY)
-	@chmod +x $(INSTALL_DIR)/$(BINARY)
-	@printf "$(BOLD)$(GREEN)  ✓ Installed$(RESET) $(INSTALL_DIR)/$(BINARY)\n"
-	@$(MAKE) --no-print-directory _post_install_log INSTALL_LOCATION=$(INSTALL_DIR)
+	@ACTION=instalado; \
+	if [ -f "$(INSTALL_DIR)/$(BINARY)" ]; then \
+		ACTION=atualizado; \
+		OLD_VER=$$($(INSTALL_DIR)/$(BINARY) version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
+		if [ -z "$$OLD_VER" ]; then OLD_VER="?"; fi; \
+		printf "\n$(BOLD)$(CYAN)  Updating$(RESET)   $(BINARY) $(GRAY)v$$OLD_VER$(RESET) → $(BOLD)v$(VERSION)$(RESET) em $(INSTALL_DIR)/$(BINARY)\n"; \
+	else \
+		printf "\n$(BOLD)$(CYAN)  Installing$(RESET) $(BINARY) v$(VERSION) → $(INSTALL_DIR)/$(BINARY)\n"; \
+	fi; \
+	cp $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR)/$(BINARY); \
+	chmod +x $(INSTALL_DIR)/$(BINARY); \
+	if [ "$$ACTION" = "atualizado" ]; then \
+		printf "$(BOLD)$(GREEN)  ✓ Updated$(RESET)   $(INSTALL_DIR)/$(BINARY)\n"; \
+	else \
+		printf "$(BOLD)$(GREEN)  ✓ Installed$(RESET) $(INSTALL_DIR)/$(BINARY)\n"; \
+	fi; \
+	$(MAKE) --no-print-directory _post_install_log INSTALL_LOCATION=$(INSTALL_DIR) INSTALL_ACTION=$$ACTION
 
 # ── install-global ────────────────────────────────────────────────────────────
 ## Instala o binário em /usr/local/bin (requer sudo)
 install-global: build
-	@printf "\n$(BOLD)$(CYAN)  Installing$(RESET) $(BINARY) → $(INSTALL_DIR_GLOBAL)/$(BINARY)$(RESET) $(GRAY)(requer sudo)$(RESET)\n"
-	@sudo cp $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR_GLOBAL)/$(BINARY)
-	@sudo chmod +x $(INSTALL_DIR_GLOBAL)/$(BINARY)
-	@printf "$(BOLD)$(GREEN)  ✓ Installed$(RESET) $(INSTALL_DIR_GLOBAL)/$(BINARY)\n"
-	@$(MAKE) --no-print-directory _post_install_log INSTALL_LOCATION=$(INSTALL_DIR_GLOBAL)
+	@ACTION=instalado; \
+	if [ -f "$(INSTALL_DIR_GLOBAL)/$(BINARY)" ]; then \
+		ACTION=atualizado; \
+		OLD_VER=$$($(INSTALL_DIR_GLOBAL)/$(BINARY) version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
+		if [ -z "$$OLD_VER" ]; then OLD_VER="?"; fi; \
+		printf "\n$(BOLD)$(CYAN)  Updating$(RESET)   $(BINARY) $(GRAY)v$$OLD_VER$(RESET) → $(BOLD)v$(VERSION)$(RESET) em $(INSTALL_DIR_GLOBAL)/$(BINARY) $(GRAY)(requer sudo)$(RESET)\n"; \
+	else \
+		printf "\n$(BOLD)$(CYAN)  Installing$(RESET) $(BINARY) v$(VERSION) → $(INSTALL_DIR_GLOBAL)/$(BINARY) $(GRAY)(requer sudo)$(RESET)\n"; \
+	fi; \
+	sudo cp $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR_GLOBAL)/$(BINARY); \
+	sudo chmod +x $(INSTALL_DIR_GLOBAL)/$(BINARY); \
+	if [ "$$ACTION" = "atualizado" ]; then \
+		printf "$(BOLD)$(GREEN)  ✓ Updated$(RESET)   $(INSTALL_DIR_GLOBAL)/$(BINARY)\n"; \
+	else \
+		printf "$(BOLD)$(GREEN)  ✓ Installed$(RESET) $(INSTALL_DIR_GLOBAL)/$(BINARY)\n"; \
+	fi; \
+	$(MAKE) --no-print-directory _post_install_log INSTALL_LOCATION=$(INSTALL_DIR_GLOBAL) INSTALL_ACTION=$$ACTION
 
 # ── uninstall ─────────────────────────────────────────────────────────────────
 ## Remove o binário de ~/.local/bin e /usr/local/bin (se existirem)
@@ -140,12 +164,13 @@ help:
 # ==============================================================================
 
 INSTALL_LOCATION ?= $(INSTALL_DIR)
+INSTALL_ACTION   ?= instalado
 
 .PHONY: _post_install_log
 _post_install_log:
 	@printf "\n"
 	@printf "$(BOLD)$(PURPLE)╔══════════════════════════════════════════════════════════════╗$(RESET)\n"
-	@printf "$(BOLD)$(PURPLE)║$(RESET)  $(BOLD)⚡ cpp-gen v$(VERSION) instalado com sucesso!$(RESET)              $(BOLD)$(PURPLE)║$(RESET)\n"
+	@printf "$(BOLD)$(PURPLE)║$(RESET)  $(BOLD)⚡ cpp-gen v$(VERSION) $(INSTALL_ACTION) com sucesso!$(RESET)              $(BOLD)$(PURPLE)║$(RESET)\n"
 	@printf "$(BOLD)$(PURPLE)╚══════════════════════════════════════════════════════════════╝$(RESET)\n"
 	@printf "\n"
 

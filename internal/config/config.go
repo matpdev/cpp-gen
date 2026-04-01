@@ -111,6 +111,51 @@ func (l FolderLayout) Description() string {
 	}
 }
 
+// TreePreview retorna uma árvore ASCII da estrutura de pastas gerada pelo
+// layout, usando <nome> como placeholder para o nome do projeto.
+// Exibida como description de cada opção no seletor de layout da TUI.
+func (l FolderLayout) TreePreview() string {
+	switch l {
+	case LayoutSeparate:
+		return "<projeto>/\n" +
+			"├─ include/\n" +
+			"│   └─ <nome>/\n" +
+			"│       └─ *.hpp     ← headers públicos\n" +
+			"├─ src/\n" +
+			"│   └─ *.cpp         ← implementações\n" +
+			"└─ tests/"
+	case LayoutMerged:
+		return "<projeto>/\n" +
+			"├─ <nome>/\n" +
+			"│   ├─ *.hpp         ← headers\n" +
+			"│   └─ *.cpp         ← implementações\n" +
+			"└─ tests/"
+	case LayoutFlat:
+		return "<projeto>/\n" +
+			"├─ src/\n" +
+			"│   ├─ *.hpp         ← headers\n" +
+			"│   └─ *.cpp         ← implementações\n" +
+			"└─ tests/"
+	case LayoutModular:
+		return "<projeto>/\n" +
+			"├─ libs/\n" +
+			"│   └─ <nome>/\n" +
+			"│       ├─ include/  ← headers públicos\n" +
+			"│       └─ src/      ← implementações\n" +
+			"├─ apps/             ← executáveis\n" +
+			"└─ tests/"
+	case LayoutTwoRoot:
+		return "<projeto>/\n" +
+			"├─ include/\n" +
+			"│   └─ *.hpp         ← headers (sem namespace)\n" +
+			"├─ src/\n" +
+			"│   └─ *.cpp         ← implementações\n" +
+			"└─ tests/"
+	default:
+		return ""
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos enumerados
 // ─────────────────────────────────────────────────────────────────────────────
