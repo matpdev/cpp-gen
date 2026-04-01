@@ -120,12 +120,25 @@ done
 section "Versão"
 
 if [[ -z "$VERSION" ]]; then
-  cd "$REPO_ROOT"
-  VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)
-  if [[ -z "$VERSION" ]]; then
-    die "Nenhuma tag encontrada. Use --version <x.y.z> para especificar a versão."
+  info "Buscando" "última release em github.com/${GITHUB_REPO}..."
+
+  LATEST_JSON="$WORK_DIR/latest_release.json"
+  HTTP_CODE=$(curl -sL -w "%{http_code}" \
+    -H "Accept: application/vnd.github+json" \
+    -o "$LATEST_JSON" \
+    "https://api.github.com/repos/${GITHUB_REPO}/releases/latest")
+
+  if [[ "$HTTP_CODE" != "200" ]]; then
+    die "GitHub API retornou HTTP $HTTP_CODE. Verifique se o repositório tem releases publicadas."
   fi
-  info "Detectada" "v${VERSION} (última tag git)"
+
+  VERSION=$(grep '"tag_name"' "$LATEST_JSON" | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' | sed 's/^v//')
+
+  if [[ -z "$VERSION" ]]; then
+    die "Não foi possível extrair a versão da API do GitHub. Use --version <x.y.z>."
+  fi
+
+  info "Detectada" "v${VERSION} (última release no GitHub)"
 else
   VERSION="${VERSION#v}"
   info "Especificada" "v${VERSION}"
