@@ -133,26 +133,26 @@ jobs:
             -e "s/sha256sums_i686=('SKIP')/sha256sums_i686=('${SHA_I686}')/" \
             aur/PKGBUILD > /tmp/aur-cpp-gen-bin/PKGBUILD
 
-          # ── Generate .SRCINFO ────────────────────────────────────────────────
-          cat > /tmp/aur-cpp-gen-bin/.SRCINFO << EOF
-pkgbase = cpp-gen-bin
-	pkgdesc = Modern C++ project generator with CMake, package managers, IDE configurations and development tools
-	pkgver = ${VERSION}
-	pkgrel = 1
-	url = https://github.com/matpdev/cpp-gen
-	arch = x86_64
-	arch = i686
-	license = MIT
-	provides = cpp-gen
-	conflicts = cpp-gen
-	options = !strip
-	source_x86_64 = cpp-gen-bin-${VERSION}-x86_64.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v${VERSION}/cpp-gen_${VERSION}_linux_amd64.tar.gz
-	sha256sums_x86_64 = ${SHA_X86_64}
-	source_i686 = cpp-gen-bin-${VERSION}-i686.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v${VERSION}/cpp-gen_${VERSION}_linux_386.tar.gz
-	sha256sums_i686 = ${SHA_I686}
-
-pkgname = cpp-gen-bin
-EOF
+          # ── Generate .SRCINFO (printf \t avoids literal tabs in YAML) ────────
+          {
+            printf 'pkgbase = cpp-gen-bin\n'
+            printf '\tpkgdesc = Modern C++ project generator with CMake, package managers, IDE configurations and development tools\n'
+            printf '\tpkgver = %s\n'   "${VERSION}"
+            printf '\tpkgrel = 1\n'
+            printf '\turl = https://github.com/matpdev/cpp-gen\n'
+            printf '\tarch = x86_64\n'
+            printf '\tarch = i686\n'
+            printf '\tlicense = MIT\n'
+            printf '\tprovides = cpp-gen\n'
+            printf '\tconflicts = cpp-gen\n'
+            printf '\toptions = !strip\n'
+            printf '\tsource_x86_64 = cpp-gen-bin-%s-x86_64.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v%s/cpp-gen_%s_linux_amd64.tar.gz\n' "${VERSION}" "${VERSION}" "${VERSION}"
+            printf '\tsha256sums_x86_64 = %s\n' "${SHA_X86_64}"
+            printf '\tsource_i686 = cpp-gen-bin-%s-i686.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v%s/cpp-gen_%s_linux_386.tar.gz\n' "${VERSION}" "${VERSION}" "${VERSION}"
+            printf '\tsha256sums_i686 = %s\n'   "${SHA_I686}"
+            printf '\n'
+            printf 'pkgname = cpp-gen-bin\n'
+          } > /tmp/aur-cpp-gen-bin/.SRCINFO
 
           # ── Copy LICENSE ─────────────────────────────────────────────────────
           cp aur/LICENSE /tmp/aur-cpp-gen-bin/LICENSE
