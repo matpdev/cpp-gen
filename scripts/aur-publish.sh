@@ -279,7 +279,6 @@ SRCINFO_OUT="$WORK_DIR/.SRCINFO"
 
 if command -v makepkg >/dev/null 2>&1; then
   # Preferred: use makepkg for 100% accurate .SRCINFO
-  cp "$PKGBUILD_OUT" "$WORK_DIR/PKGBUILD"
   (cd "$WORK_DIR" && makepkg --printsrcinfo > "$SRCINFO_OUT")
   success "Gerado" ".SRCINFO via makepkg --printsrcinfo"
 else
