@@ -32,9 +32,9 @@ const (
 // Variables injected at compile time via ldflags by goreleaser and the Makefile.
 // Must be `var` (never `const`) for the injection to work.
 //
-//	-X cpp-gen/cmd.AppVersion=1.2.3
-//	-X cpp-gen/cmd.BuildDate=2024-01-01T00:00:00Z
-//	-X cpp-gen/cmd.GitCommit=abc1234
+//	-X github.com/matpdev/cpp-gen/cmd.AppVersion=1.2.3
+//	-X github.com/matpdev/cpp-gen/cmd.BuildDate=2024-01-01T00:00:00Z
+//	-X github.com/matpdev/cpp-gen/cmd.GitCommit=abc1234
 var (
 	// AppVersion is the current version in SemVer format. Default value "dev"
 	// indicates a local build without ldflags injection.

@@ -11,6 +11,7 @@
 #   make release      → calculates next version and creates tag via Conventional Commits
 #   make snapshot     → local multi-platform build with goreleaser (without publishing)
 #   make changelog    → generates/updates CHANGELOG.md via git-cliff
+#   make aur-update   → updates aur/PKGBUILD version and regenerates .SRCINFO
 #   make help         → displays this message
 # ==============================================================================
 
@@ -36,9 +37,9 @@ BUILD_DIR  := ./dist
 
 # Injects version, commit and date into the binary via ldflags for --version display
 LDFLAGS := -s -w \
-	-X 'cpp-gen/cmd.AppVersion=$(VERSION)' \
-	-X 'cpp-gen/cmd.BuildDate=$(BUILD_DATE)' \
-	-X 'cpp-gen/cmd.GitCommit=$(GIT_COMMIT)'
+	-X 'github.com/matpdev/cpp-gen/cmd.AppVersion=$(VERSION)' \
+	-X 'github.com/matpdev/cpp-gen/cmd.BuildDate=$(BUILD_DATE)' \
+	-X 'github.com/matpdev/cpp-gen/cmd.GitCommit=$(GIT_COMMIT)'
 
 GO      := go
 GOFLAGS := -trimpath
@@ -60,7 +61,7 @@ GRAY    := \033[90m
 
 .DEFAULT_GOAL := build
 
-.PHONY: build install install-global uninstall clean release snapshot changelog help
+.PHONY: build install install-global uninstall clean release snapshot changelog aur-update help
 
 # ── build ─────────────────────────────────────────────────────────────────────
 ## Compiles the binary to ./dist/cpp-gen
@@ -175,6 +176,43 @@ clean:
 	@printf "$(BOLD)$(CYAN)  Cleaning$(RESET)   $(BUILD_DIR)/\n"
 	@rm -rf $(BUILD_DIR)
 	@printf "$(BOLD)$(GREEN)  ✓ Done$(RESET)\n"
+
+# ── aur-update ────────────────────────────────────────────────────────────────
+## Updates aur/PKGBUILD pkgver and regenerates aur/.SRCINFO
+aur-update:
+	@printf "$(BOLD)$(CYAN)  AUR$(RESET)        atualizando aur/PKGBUILD para v$(VERSION)...\n"
+	@if [ ! -f aur/PKGBUILD ]; then \
+		printf "$(RED)  ✗ aur/PKGBUILD não encontrado.$(RESET)\n"; exit 1; \
+	fi
+	@sed -i "s/^pkgver=.*/pkgver=$(VERSION)/" aur/PKGBUILD
+	@sed -i "s/^pkgrel=.*/pkgrel=1/"          aur/PKGBUILD
+	@printf "$(BOLD)$(GREEN)  ✓ PKGBUILD$(RESET)  pkgver=$(VERSION) pkgrel=1\n"
+	@if command -v makepkg >/dev/null 2>&1; then \
+		cd aur && makepkg --printsrcinfo > .SRCINFO; \
+		printf "$(BOLD)$(GREEN)  ✓ .SRCINFO$(RESET) gerado com makepkg --printsrcinfo\n"; \
+	else \
+		sed -i "s/pkgver = .*/pkgver = $(VERSION)/" aur/.SRCINFO; \
+		sed -i "s/pkgrel = .*/pkgrel = 1/"          aur/.SRCINFO; \
+		sed -i "s|v[0-9]\+\.[0-9]\+\.[0-9]\+/|v$(VERSION)/|g" aur/.SRCINFO; \
+		sed -i "s/-[0-9]\+\.[0-9]\+\.[0-9]\+-/-$(VERSION)-/g"  aur/.SRCINFO; \
+		printf "$(BOLD)$(YELLOW)  ~ .SRCINFO$(RESET)  atualizado via sed (makepkg não disponível)\n"; \
+		printf "  $(GRAY)  Instale makepkg (pacman) para garantir .SRCINFO correto.$(RESET)\n"; \
+	fi
+	@printf "\n"
+	@printf "$(BOLD)  Próximos passos para publicar no AUR:$(RESET)\n\n"
+	@printf "  $(CYAN)1.$(RESET) Atualize os checksums reais:\n"
+	@printf "       $(YELLOW)cd aur && updpkgsums$(RESET)\n\n"
+	@printf "  $(CYAN)2.$(RESET) Regenere o .SRCINFO após updpkgsums:\n"
+	@printf "       $(YELLOW)makepkg --printsrcinfo > .SRCINFO$(RESET)\n\n"
+	@printf "  $(CYAN)3.$(RESET) Valide o pacote localmente:\n"
+	@printf "       $(YELLOW)makepkg -si$(RESET)\n\n"
+	@printf "  $(CYAN)4.$(RESET) Force-add os arquivos (respeitando o .gitignore do AUR)\n"
+	@printf "     e faça push para o branch $(BOLD)master$(RESET) $(GRAY)(único branch aceito pelo AUR)$(RESET):\n"
+	@printf "       $(YELLOW)git -C aur add -f PKGBUILD .SRCINFO LICENSE$(RESET)\n"
+	@printf "       $(YELLOW)git -C aur commit -m 'Update to v$(VERSION)'$(RESET)\n"
+	@printf "       $(YELLOW)git -C aur push origin master$(RESET)\n\n"
+	@printf "  $(GRAY)Publicação automática via CI: o goreleaser cuida dos passos acima\n"
+	@printf "  usando o secret AUR_KEY a cada nova tag de release.$(RESET)\n\n"
 
 # ── help ──────────────────────────────────────────────────────────────────────
 ## Displays all available targets

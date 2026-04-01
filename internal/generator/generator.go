@@ -21,10 +21,10 @@ import (
 	"time"
 	"unicode"
 
-	"cpp-gen/internal/config"
-	"cpp-gen/internal/generator/ide"
-	"cpp-gen/internal/generator/layout"
-	"cpp-gen/internal/generator/packages"
+	"github.com/matpdev/cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/generator/ide"
+	"github.com/matpdev/cpp-gen/internal/generator/layout"
+	"github.com/matpdev/cpp-gen/internal/generator/packages"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

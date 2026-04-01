@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/config"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"

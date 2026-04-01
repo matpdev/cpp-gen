@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"cpp-gen/cmd"
+	"github.com/matpdev/cpp-gen/cmd"
 )
 
 func main() {

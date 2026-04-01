@@ -1,4 +1,4 @@
-module cpp-gen
+module github.com/matpdev/cpp-gen
 
 go 1.22.0
 

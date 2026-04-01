@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"cpp-gen/internal/config"
-	"cpp-gen/internal/generator"
-	"cpp-gen/internal/tui"
+	"github.com/matpdev/cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/generator"
+	"github.com/matpdev/cpp-gen/internal/tui"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"

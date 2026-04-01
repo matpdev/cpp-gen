@@ -63,6 +63,10 @@ jobs:
           # GitHub token to create the release and upload assets.
           # GITHUB_TOKEN is automatically injected by Actions — no extra configuration needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # SSH private key registered on AUR for pushing the PKGBUILD automatically.
+          # Add your AUR private key as a repository secret named AUR_KEY.
+          # See: https://goreleaser.com/customization/aur/
+          AUR_KEY: ${{ secrets.AUR_KEY }}
 
   # ── Completion notification ───────────────────────────────────────────────────
   notify:

@@ -162,7 +162,7 @@ func ideLabel(data *TemplateData) string {
 //   - Analysis tools (coverage, sanitizers, profilers)
 const tmplGitignore = `# =============================================================================
 # .gitignore para projetos C++ com CMake
-# Gerado pelo cpp-gen (https://github.com/cpp-gen/cpp-gen)
+# Gerado pelo cpp-gen (https://github.com/matpdev/cpp-gen)
 # =============================================================================
 
 # ── Diretórios de build CMake ─────────────────────────────────────────────────
@@ -562,5 +562,5 @@ Copyright © {{.Year}}{{if .Author}} {{.Author}}{{end}}. Todos os direitos reser
 
 ---
 
-*Gerado com ❤️ por [cpp-gen](https://github.com/cpp-gen/cpp-gen) em {{.Year}}.*
+*Gerado com ❤️ por [cpp-gen](https://github.com/matpdev/cpp-gen) em {{.Year}}.*
 `

@@ -1,0 +1,9 @@
+# Ignore everything — only AUR-specific files are tracked.
+# Use `git add --force` (or `git add -f`) to stage them explicitly.
+*
+
+# ── AUR required files ────────────────────────────────────────────────────────
+!PKGBUILD
+!.SRCINFO
+!LICENSE
+!.gitignore

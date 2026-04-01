@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"cpp-gen/internal/generator/layout"
+	"github.com/matpdev/cpp-gen/internal/generator/layout"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

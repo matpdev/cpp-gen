@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/config"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

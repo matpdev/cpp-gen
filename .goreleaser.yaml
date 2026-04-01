@@ -50,9 +50,9 @@ builds:
     # `var` (not `const`) in cmd/root.go for the injection to work.
     ldflags:
       - -s -w
-      - -X cpp-gen/cmd.AppVersion={{.Version}}
-      - -X cpp-gen/cmd.BuildDate={{.Date}}
-      - -X cpp-gen/cmd.GitCommit={{.ShortCommit}}
+      - -X github.com/matpdev/cpp-gen/cmd.AppVersion={{.Version}}
+      - -X github.com/matpdev/cpp-gen/cmd.BuildDate={{.Date}}
+      - -X github.com/matpdev/cpp-gen/cmd.GitCommit={{.ShortCommit}}
 
 # ── Archives ──────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,45 @@ archives:
 checksum:
   name_template: checksums.txt
   algorithm: sha256
+
+# ── AUR ───────────────────────────────────────────────────────────────────────
+# Publishes the PKGBUILD automatically to the Arch User Repository after release.
+#
+# Prerequisites:
+#   1. Create an account at https://aur.archlinux.org
+#   2. Generate an SSH key pair: ssh-keygen -t ed25519 -f ~/.ssh/aur
+#   3. Add the public key to your AUR account: https://aur.archlinux.org/account/
+#   4. Register the package with an initial push (branch MUST be master):
+#        git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/cpp-gen-bin.git
+#        cp aur/PKGBUILD aur/.SRCINFO aur/LICENSE <cloned-dir>/
+#        cd <cloned-dir> && git add PKGBUILD .SRCINFO LICENSE && git commit -m "Initial release" && git push
+#   5. Add the private key as a GitHub repository secret named AUR_KEY
+#
+# Note: The AUR only accepts pushes to the `master` branch.
+# See: https://goreleaser.com/customization/aur/
+
+aurs:
+  - name: cpp-gen-bin
+    homepage: "https://github.com/matpdev/cpp-gen"
+    description: "Modern C++ project generator with CMake, package managers, IDE configurations and development tools."
+    maintainers:
+      - "matpdev <matheus2ep at gmail dot com>"
+    license: MIT
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/cpp-gen-bin.git"
+    # Skip AUR push on pre-releases (e.g. v1.0.0-beta.1)
+    skip: "{{- if .Prerelease -}}true{{- else -}}false{{- end -}}"
+    provides:
+      - cpp-gen
+    conflicts:
+      - cpp-gen
+    package: |-
+      install -Dm755 "./cpp-gen"   "${pkgdir}/usr/bin/cpp-gen"
+      install -Dm644 "./LICENSE"   "${pkgdir}/usr/share/licenses/cpp-gen-bin/LICENSE"
+      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/cpp-gen-bin/README.md"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 # Generated from commit messages following the Conventional Commits convention.
@@ -130,7 +169,7 @@ release:
 
     **Arch Linux (AUR)**
     ```sh
-    yay -S cpp-gen
+    yay -S cpp-gen-bin
     ```
 
     **Linux / macOS — manual**

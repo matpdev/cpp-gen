@@ -1,0 +1,17 @@
+pkgbase = cpp-gen-bin
+	pkgdesc = Modern C++ project generator with CMake, package managers, IDE configurations and development tools
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/matpdev/cpp-gen
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	provides = cpp-gen
+	conflicts = cpp-gen
+	options = !strip
+	source_x86_64 = cpp-gen-bin-0.1.0-x86_64.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v0.1.0/cpp-gen_0.1.0_linux_amd64.tar.gz
+	sha256sums_x86_64 = SKIP
+	source_aarch64 = cpp-gen-bin-0.1.0-aarch64.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v0.1.0/cpp-gen_0.1.0_linux_arm64.tar.gz
+	sha256sums_aarch64 = SKIP
+
+pkgname = cpp-gen-bin

@@ -37,23 +37,43 @@ eliminating the time spent on the initial configuration of:
 
 ## Installation
 
-### Prerequisites
+### Arch Linux (AUR) — recommended
 
-- [Go 1.22+](https://go.dev/dl/)
+```bash
+# With yay
+yay -S cpp-gen-bin
+
+# With paru
+paru -S cpp-gen-bin
+```
+
+### Binary (Linux / macOS)
+
+Download the latest pre-compiled binary from [GitHub Releases](https://github.com/matpdev/cpp-gen/releases/latest):
+
+```bash
+# Linux x86_64
+curl -LO https://github.com/matpdev/cpp-gen/releases/latest/download/cpp-gen_linux_amd64.tar.gz
+tar -xzf cpp-gen_linux_amd64.tar.gz
+install -m755 cpp-gen ~/.local/bin/
+
+# Verify checksum
+sha256sum -c checksums.txt
+```
+
+### Go install
+
+```bash
+go install github.com/matpdev/cpp-gen@latest
+```
 
 ### From source
 
 ```bash
-git clone https://github.com/cpp-gen/cpp-gen.git
+git clone https://github.com/matpdev/cpp-gen.git
 cd cpp-gen
 go mod tidy
 go build -o cpp-gen .
-```
-
-### Install globally
-
-```bash
-go install cpp-gen@latest
 ```
 
 ---
@@ -267,7 +287,7 @@ main()
 ### Set up the environment
 
 ```bash
-git clone https://github.com/cpp-gen/cpp-gen.git
+git clone https://github.com/matpdev/cpp-gen.git
 cd cpp-gen
 go mod tidy
 ```
