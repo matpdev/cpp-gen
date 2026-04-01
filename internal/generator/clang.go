@@ -1,0 +1,380 @@
+// Package generator contém toda a lógica de geração de projetos C++ do cpp-gen.
+package generator
+
+import (
+	"fmt"
+	"path/filepath"
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateClang — ponto de entrada
+// ─────────────────────────────────────────────────────────────────────────────
+
+// generateClang gera os arquivos de configuração das ferramentas da família
+// LLVM/Clang usadas para análise estática, navegação de código e formatação:
+//
+//   - .clangd        — configuração do servidor LSP Clangd (se UseClangd == true)
+//   - .clang-format  — regras de formatação de código (se UseClangFormat == true)
+//
+// Ambos os arquivos ficam na raiz do projeto, onde as ferramentas os detectam
+// automaticamente ao percorrer os diretórios pai a partir do arquivo aberto.
+func generateClang(root string, data *TemplateData, verbose bool) error {
+	// ── .clangd ───────────────────────────────────────────────────────────────
+	if data.UseClangd {
+		clangdPath := filepath.Join(root, ".clangd")
+		if err := writeTemplate(clangdPath, "clangd", tmplClangd, data, verbose); err != nil {
+			return fmt.Errorf("gerar .clangd: %w", err)
+		}
+	}
+
+	// ── .clang-format ─────────────────────────────────────────────────────────
+	if data.UseClangFormat {
+		clangFmtPath := filepath.Join(root, ".clang-format")
+		if err := writeTemplate(clangFmtPath, "clang-format", tmplClangFormat, data, verbose); err != nil {
+			return fmt.Errorf("gerar .clang-format: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Template: .clangd
+// ─────────────────────────────────────────────────────────────────────────────
+
+// tmplClangd é o template para o arquivo .clangd na raiz do projeto.
+//
+// O Clangd é um servidor LSP (Language Server Protocol) que fornece:
+//   - Autocompletar inteligente (code completion)
+//   - Diagnósticos em tempo real (errors, warnings, clang-tidy)
+//   - Navegação de código (go-to-definition, find references)
+//   - Formatação via clang-format
+//   - Inferência de tipos e hover documentation
+//
+// Este arquivo configura o Clangd para:
+//   - Encontrar o compile_commands.json gerado pelo CMake
+//   - Aplicar checks do clang-tidy relevantes para C++ moderno
+//   - Otimizar o desempenho com cache e limites de memória
+//
+// Compatível com: VSCode (clangd extension), Neovim (nvim-lspconfig),
+// CLion, Emacs (eglot/lsp-mode) e qualquer editor com suporte a LSP.
+//
+// Referência: https://clangd.llvm.org/config.html
+const tmplClangd = `# =============================================================================
+# .clangd — Configuração do servidor LSP Clangd
+# =============================================================================
+# Documentação completa: https://clangd.llvm.org/config.html
+#
+# Esta configuração é aplicada a todos os arquivos do projeto.
+# Para configurações por diretório, crie .clangd adicionais em subpastas.
+# =============================================================================
+
+# ── Compilação ────────────────────────────────────────────────────────────────
+CompileFlags:
+  # Aponta para o compile_commands.json gerado pelo CMake no diretório de build.
+  # O Clangd percorre os diretórios pai até encontrar este arquivo.
+  #
+  # Com CMakePresets.json, o arquivo fica em build/<preset>/compile_commands.json.
+  # O link simbólico abaixo (criado manualmente ou por script) facilita a detecção:
+  #   ln -sf build/debug/compile_commands.json compile_commands.json
+  #
+  # Alternativamente, configure o caminho explícito na sua IDE.
+  CompilationDatabase: build/debug
+
+  # Flags adicionais injetadas em todos os arquivos, independente do CMake.
+  # Úteis para suprimir warnings espúrios de headers de sistema ou IDEs.
+  Add:
+    - "-std=c++{{.Standard}}"
+    - "-Wall"
+    - "-Wextra"
+    # Suprime warnings de includes de sistema que não podem ser corrigidos.
+    - "-Wno-unknown-pragmas"
+
+  # Remove flags que causam problemas com o Clangd (ex: flags específicas do GCC).
+  # Remove:
+  #   - "-fprofile-arcs"   # GCC coverage flag não suportada pelo Clangd
+
+# ── Diagnósticos e clang-tidy ─────────────────────────────────────────────────
+Diagnostics:
+  # Nível de diagnósticos exibidos inline no editor.
+  # Valores: error | warning | information | hint
+  UnusedIncludes: Strict
+
+  # Integração com clang-tidy para checks adicionais além dos warnings do compilador.
+  # Requer que o binário clang-tidy esteja instalado e acessível no PATH.
+  ClangTidy:
+    Add:
+      # ── Checks essenciais de C++ moderno ─────────────────────────────────────
+      - "modernize-*"              # Sugestões de C++ moderno (nullptr, range-for, etc.)
+      - "cppcoreguidelines-*"      # C++ Core Guidelines da ISO
+      - "performance-*"            # Oportunidades de otimização de desempenho
+      - "readability-*"            # Legibilidade e consistência de código
+      - "bugprone-*"               # Padrões propensos a bugs
+
+    Remove:
+      # Desabilita checks excessivamente opinativos ou ruidosos.
+      - "modernize-use-trailing-return-type"  # Estilo de retorno trailing (controverso)
+      - "cppcoreguidelines-avoid-magic-numbers" # Números mágicos (muito ruidoso)
+      - "readability-magic-numbers"             # Duplicado do anterior
+      - "cppcoreguidelines-pro-type-vararg"     # Variadic args legítimos existem
+      - "cppcoreguidelines-pro-bounds-array-to-pointer-decay" # Muito restritivo
+
+    CheckOptions:
+      # Estilo de nomenclatura — ajuste conforme a convenção do projeto.
+      readability-identifier-naming.VariableCase: camelCase
+      readability-identifier-naming.FunctionCase: camelCase
+      readability-identifier-naming.ClassCase: CamelCase
+      readability-identifier-naming.ConstantCase: UPPER_CASE
+      readability-identifier-naming.NamespaceCase: lower_case
+
+  # Suprime diagnósticos em headers de terceiros e do sistema.
+  # O Clangd não reportará erros em arquivos que correspondam a estes padrões.
+  Suppress: "{{.NameUpper}}_SUPPRESS_*"
+
+# ── Hover e navegação ─────────────────────────────────────────────────────────
+Hover:
+  # Exibe a documentação do símbolo ao passar o mouse (formato Markdown).
+  ShowAKA: true  # Exibe aliases de tipo (ex: "aka 'std::basic_string<char>'")
+
+# ── Índice e cache ────────────────────────────────────────────────────────────
+Index:
+  # Habilita o índice em background para todo o projeto, melhorando
+  # a velocidade de "find references" e "go to definition".
+  Background: Build
+
+# ── Inlay hints ──────────────────────────────────────────────────────────────
+InlayHints:
+  # Inlay hints exibem informações adicionais inline no editor (tipos, parâmetros).
+  # Requer suporte da extensão/plugin do editor.
+  Enabled: true
+  ParameterNames: true       # Mostra nomes dos parâmetros em chamadas de função
+  DeducedTypes: true         # Mostra tipos deduzidos de variáveis auto
+  Designators: true          # Mostra designadores em inicializadores de agregados
+  BlockEnd: false            # Mostra comentário no fechamento de blocos longos
+
+# ── Completion ────────────────────────────────────────────────────────────────
+Completion:
+  # Inclui headers automaticamente ao selecionar um símbolo no autocompletar.
+  AllScopes: true  # Inclui símbolos de todos os escopos (não apenas o atual)
+`
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Template: .clang-format
+// ─────────────────────────────────────────────────────────────────────────────
+
+// tmplClangFormat é o template para o arquivo .clang-format na raiz do projeto.
+//
+// O clang-format é a ferramenta padrão da indústria para formatação automática
+// de código C, C++, C#, Java e outros. Ao colocar .clang-format na raiz do
+// projeto, a mesma configuração é aplicada por todos os desenvolvedores e IDEs,
+// eliminando debates sobre estilo de código.
+//
+// Este arquivo define um estilo baseado no LLVM com ajustes modernos:
+//   - Indentação com 4 espaços (sem tabs)
+//   - Limite de coluna em 100 caracteres
+//   - Chaves em estilo Allman (abertura na mesma linha, exceto funções)
+//   - Espaçamento consistente em templates, lambdas e inicializadores
+//   - Ordenação automática de #include com grupos separados
+//
+// Integração:
+//   - VSCode: extensão "C/C++" ou "clangd" formatam ao salvar
+//   - Neovim: null-ls / conform.nvim com clang-format como formatter
+//   - CLion: configurável em Settings > Code Style > C/C++ > ClangFormat
+//   - CI/CD: clang-format --dry-run --Werror para verificar formatação
+//
+// Referência: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+const tmplClangFormat = `# =============================================================================
+# .clang-format — Regras de formatação de código C++
+# =============================================================================
+# Documentação: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+#
+# Para formatar um arquivo manualmente:
+#   clang-format -i src/main.cpp
+#
+# Para formatar o projeto inteiro:
+#   find src include tests -name "*.cpp" -o -name "*.hpp" | xargs clang-format -i
+#
+# Para verificar sem modificar (útil em CI/CD):
+#   clang-format --dry-run --Werror src/main.cpp
+# =============================================================================
+
+# Versão mínima do clang-format necessária para interpretar este arquivo.
+# Clang-format ignora opções desconhecidas sem erro, mas pode formatar diferente.
+---
+Language:        Cpp
+Standard:        c++{{.Standard}}
+
+# Herda do estilo LLVM como base e sobrescreve as opções abaixo.
+BasedOnStyle:    LLVM
+
+# ── Indentação ────────────────────────────────────────────────────────────────
+
+IndentWidth:                    4      # Tamanho da indentação (espaços)
+TabWidth:                       4      # Tamanho visual do tab (consistência)
+UseTab:                         Never  # Nunca usa tabs — apenas espaços
+ContinuationIndentWidth:        4      # Indentação de continuação de linha
+IndentCaseLabels:               true   # Indenta case dentro do switch
+IndentCaseBlocks:               false  # Não indenta blocos de case
+IndentPPDirectives:             None   # Não indenta diretivas de pré-processador
+IndentWrappedFunctionNames:     false  # Não indenta nomes de função quebrados
+IndentAccessModifiers:          false  # public/private/protected não indentados
+AccessModifierOffset:          -4      # Recua public/private para o nível da classe
+NamespaceIndentation:           None   # Não indenta conteúdo de namespace
+
+# ── Comprimento de linha ──────────────────────────────────────────────────────
+
+ColumnLimit:                    100    # Máximo de colunas por linha
+ReflowComments:                 true   # Reformata comentários longos
+
+# ── Chaves e blocos ───────────────────────────────────────────────────────────
+
+# Estilo de abertura de chaves (BreakBeforeBraces: Custom permite configuração granular)
+BreakBeforeBraces:              Custom
+BraceWrapping:
+  AfterClass:               true   # class Foo {  →  class Foo\n{
+  AfterControlStatement:    Never  # if (...) {  (chave na mesma linha)
+  AfterEnum:                false  # enum { ... }  (chave na mesma linha)
+  AfterFunction:            true   # void foo() {  →  void foo()\n{
+  AfterNamespace:           false  # namespace foo {  (chave na mesma linha)
+  AfterStruct:              true   # struct Foo {  →  struct Foo\n{
+  AfterUnion:               false
+  AfterExternBlock:         false
+  BeforeCatch:              true   # } catch {  →  }\ncatch {
+  BeforeElse:               true   # } else {   →  }\nelse {
+  BeforeLambdaBody:         false  # Lambda: chave na mesma linha
+  BeforeWhile:              false  # do { } while  (chave na mesma linha)
+  IndentBraces:             false
+  SplitEmptyFunction:       false  # Função vazia: void foo() {}  (linha única)
+  SplitEmptyRecord:         false  # Struct vazia: struct Foo {};  (linha única)
+  SplitEmptyNamespace:      false
+
+# ── Espaçamento ───────────────────────────────────────────────────────────────
+
+SpaceAfterCStyleCast:           false  # (int)x  (sem espaço após cast C-style)
+SpaceAfterLogicalNot:           false  # !condition  (sem espaço)
+SpaceAfterTemplateKeyword:      true   # template <typename T>
+SpaceAroundPointerQualifiers:   Default
+SpaceBeforeAssignmentOperators: true   # x = y  (com espaço)
+SpaceBeforeCaseColon:           false  # case X:  (sem espaço antes de :)
+SpaceBeforeCpp11BracedList:     false  # std::vector{1, 2}  (sem espaço)
+SpaceBeforeCtorInitializerColon: true  # Foo() : member_(...)
+SpaceBeforeInheritanceColon:    true   # class Foo : Base
+SpaceBeforeParens:              ControlStatements  # if (...) mas foo(...)
+SpaceBeforeRangeBasedForLoopColon: true  # for (auto x : container)
+SpaceBeforeSquareBrackets:      false  # arr[0]  (sem espaço)
+SpaceInEmptyBlock:              false  # {}  (sem espaço em bloco vazio)
+SpaceInEmptyParentheses:        false  # ()  (sem espaço em parênteses vazios)
+SpacesBeforeTrailingComments:   2      # Dois espaços antes de //  comentário inline
+SpacesInAngles:                 Never  # <T>  (sem espaços em templates)
+SpacesInCStyleCastParentheses:  false  # (int)  (sem espaços)
+SpacesInConditionalStatement:   false  # if (x)  (sem espaços extras)
+SpacesInContainerLiterals:      false  # {1, 2, 3}  (sem espaços)
+SpacesInParentheses:            false  # (x)  (sem espaços)
+SpacesInSquareBrackets:         false  # [0]  (sem espaços)
+
+# ── Ponteiros e referências ───────────────────────────────────────────────────
+
+PointerAlignment:               Left   # int* ptr  (asterisco junto ao tipo)
+ReferenceAlignment:             Left   # int& ref  (& junto ao tipo)
+DerivePointerAlignment:         false  # Não deriva do código existente
+
+# ── Alinhamento ───────────────────────────────────────────────────────────────
+
+AlignAfterOpenBracket:          Align          # Alinha argumentos após parêntese
+AlignArrayOfStructures:         Right          # Alinha arrays de structs à direita
+AlignConsecutiveAssignments:    None           # Não alinha = consecutivos
+AlignConsecutiveBitFields:      None           # Não alinha bit fields consecutivos
+AlignConsecutiveDeclarations:   None           # Não alinha declarações consecutivas
+AlignConsecutiveMacros:         None           # Não alinha macros consecutivas
+AlignEscapedNewlines:           Left           # Alinha \ de continuação à esquerda
+AlignOperands:                  Align          # Alinha operandos em expressões quebradas
+AlignTrailingComments:          true           # Alinha comentários inline na mesma coluna
+
+# ── Quebras de linha ──────────────────────────────────────────────────────────
+
+AllowAllArgumentsOnNextLine:            true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine:          Empty   # Apenas blocos vazios {}
+AllowShortCaseLabelsOnASingleLine:      false
+AllowShortEnumsOnASingleLine:           false
+AllowShortFunctionsOnASingleLine:       Empty   # Apenas funções vazias
+AllowShortIfStatementsOnASingleLine:    Never   # Sempre expande if para múltiplas linhas
+AllowShortLambdasOnASingleLine:         All     # Lambdas curtas em uma linha: [](){ }
+AllowShortLoopsOnASingleLine:           false
+
+BreakBeforeBinaryOperators:     None    # Operador fica no fim da linha anterior
+BreakBeforeTernaryOperators:    true    # ? fica no início da linha
+BreakConstructorInitializers:   BeforeColon  # : member_(x),\n  other_(y)
+BreakInheritanceList:           BeforeColon  # : public Base\n, public Mixin
+BreakStringLiterals:            true    # Quebra strings longas automaticamente
+
+# ── Includes ──────────────────────────────────────────────────────────────────
+
+# Ordena e agrupa os #include automaticamente.
+# Grupos (separados por linha em branco):
+#   1. Header correspondente ao .cpp  (ex: "foo.hpp" em foo.cpp)
+#   2. Headers do projeto             (ex: "{{.Name}}/utils.hpp")
+#   3. Headers de bibliotecas         (ex: <fmt/format.h>)
+#   4. Headers do sistema C++         (ex: <vector>, <string>)
+#   5. Headers do sistema C           (ex: <cstdio>, <cassert>)
+SortIncludes:                   CaseSensitive
+IncludeBlocks:                  Regroup
+IncludeCategories:
+  # Headers do projeto (sem diretório de sistema)
+  - Regex:           '^"({{.Name}}|{{.NameSnake}}|{{.NamePascal}})'
+    Priority:        1
+    SortPriority:    1
+    CaseSensitive:   true
+  # Outros headers de projeto com aspas
+  - Regex:           '^"'
+    Priority:        2
+    SortPriority:    2
+  # Headers C++ do sistema (<algorithm>, <vector>, etc.)
+  - Regex:           '^<[a-z_]+>$'
+    Priority:        4
+    SortPriority:    4
+  # Headers C legados com c-prefix (<cstdio>, <cassert>)
+  - Regex:           '^<c[a-z]'
+    Priority:        5
+    SortPriority:    5
+  # Headers de terceiros com diretório (<nlohmann/json.hpp>)
+  - Regex:           '^<[A-Za-z0-9_]+/'
+    Priority:        3
+    SortPriority:    3
+
+# ── Templates e lambdas ───────────────────────────────────────────────────────
+
+AlwaysBreakTemplateDeclarations: Yes  # template<typename T>\nvoid foo()
+CompactNamespaces:               false # Não compacta namespace a { namespace b {
+LambdaBodyIndentation:           Signature
+
+# ── Inicializadores e argumentos ──────────────────────────────────────────────
+
+BinPackArguments:               false  # Não empacota argumentos: cada um em sua linha
+BinPackParameters:              false  # Não empacota parâmetros
+PackConstructorInitializers:    BinPack
+
+# ── Comentários ───────────────────────────────────────────────────────────────
+
+CommentPragmas:                 '^ IWYU pragma:'  # Pragma de IWYU (include-what-you-use)
+FixNamespaceComments:           true  # Adiciona // namespace foo no fechamento
+
+# ── Outros ────────────────────────────────────────────────────────────────────
+
+Cpp11BracedListStyle:           true   # Usa estilo C++11 para listas {1, 2, 3}
+EmptyLineAfterAccessModifier:   Never  # Sem linha vazia após public:/private:
+EmptyLineBeforeAccessModifier:  LogicalBlock
+InsertTrailingCommas:           None   # Não insere vírgulas trailing
+MaxEmptyLinesToKeep:            1      # Máximo de 1 linha em branco consecutiva
+PenaltyBreakAssignment:         2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment:            300
+PenaltyBreakFirstLessLess:      120
+PenaltyBreakOpenParenthesis:    0
+PenaltyBreakString:             1000
+PenaltyExcessCharacter:         1000000
+PenaltyReturnTypeOnItsOwnLine:  200
+SeparateDefinitionBlocks:       Leave  # Mantém separação entre definições como está
+ShortNamespaceLines:            1      # Namespace com 1 linha: namespace foo { bar(); }
+SortUsingDeclarations:          true   # Ordena declarações using alfabeticamente
+`

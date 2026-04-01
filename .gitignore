@@ -1,0 +1,87 @@
+# =============================================================================
+# .gitignore — cpp-gen (Go project)
+# =============================================================================
+
+# ── Binários compilados ───────────────────────────────────────────────────────
+cpp-gen
+cpp-gen.exe
+
+# Diretório de build genérico
+dist/
+bin/
+out/
+
+# ── Go ────────────────────────────────────────────────────────────────────────
+
+# Módulos vendorizados (usar apenas se optar por vendor/)
+vendor/
+
+# Cache de build do Go
+*.test
+*.out
+
+# Cobertura de testes
+coverage.out
+coverage.html
+
+# Profiling
+*.prof
+*.pprof
+cpu.out
+mem.out
+
+# ── IDEs e editores ───────────────────────────────────────────────────────────
+
+# VSCode
+.vscode/
+
+# JetBrains / GoLand
+.idea/
+*.iml
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+.session.vim
+Session.vim
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ── Sistema Operacional ───────────────────────────────────────────────────────
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ── Logs e temporários ────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# ── Variáveis de ambiente ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
