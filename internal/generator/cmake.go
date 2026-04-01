@@ -18,6 +18,15 @@ import (
 //  4. cmake/CompilerWarnings.cmake — flags de warning reutilizáveis
 //  5. CMakePresets.json      — presets de configure/build/test para todas as IDEs
 func generateCMake(root string, data *TemplateData, verbose bool) error {
+	// O subdiretório do target principal varia com o layout:
+	//   separate / flat / two-root → src/
+	//   merged                     → <nome>/
+	//   modular                    → libs/<nome>/
+	srcCMakeRelPath := filepath.Join(data.LayoutCMakeSubdir, "CMakeLists.txt")
+
+	// O subdiretório de testes é sempre "tests", mas obtemos do Spec para consistência.
+	testsCMakeRelPath := filepath.Join(data.LayoutSpec.CMakeTestsDir, "CMakeLists.txt")
+
 	steps := []struct {
 		relPath  string
 		tmplName string
@@ -29,12 +38,12 @@ func generateCMake(root string, data *TemplateData, verbose bool) error {
 			tmpl:     tmplRootCMake,
 		},
 		{
-			relPath:  filepath.Join("src", "CMakeLists.txt"),
+			relPath:  srcCMakeRelPath,
 			tmplName: "src_cmake",
 			tmpl:     tmplSrcCMake,
 		},
 		{
-			relPath:  filepath.Join("tests", "CMakeLists.txt"),
+			relPath:  testsCMakeRelPath,
 			tmplName: "tests_cmake",
 			tmpl:     tmplTestsCMake,
 		},
@@ -51,8 +60,6 @@ func generateCMake(root string, data *TemplateData, verbose bool) error {
 	}
 
 	for _, s := range steps {
-		// Projetos header-only não possuem src/CMakeLists.txt com targets compilados,
-		// mas ainda precisam de um CMakeLists.txt em src/ para add_subdirectory().
 		path := filepath.Join(root, s.relPath)
 		if err := writeTemplate(path, s.tmplName, s.tmpl, data, verbose); err != nil {
 			return fmt.Errorf("gerar %s: %w", s.relPath, err)
@@ -74,7 +81,8 @@ func generateCMake(root string, data *TemplateData, verbose bool) error {
 //   - Habilita CMAKE_EXPORT_COMPILE_COMMANDS para Clangd / clang-tidy
 //   - Inclui módulos CMake auxiliares (cmake/)
 //   - Integra VCPKG ou FetchContent conforme configuração
-//   - Registra subdiretórios src/ e tests/
+//   - Registra subdiretórios conforme o layout escolhido ({{.Layout}})
+//   - No layout modular com executável, define o target app diretamente aqui
 const tmplRootCMake = `cmake_minimum_required(VERSION 3.20)
 
 # =============================================================================
@@ -169,8 +177,37 @@ include(CompilerWarnings)
 # =============================================================================
 # Subdiretórios
 # =============================================================================
+{{.LayoutNote}}
 
-add_subdirectory(src)
+{{if .LayoutIsModular}}
+# Layout modular: a biblioteca vive em {{.LayoutModularLibDir}}/
+# O CMakeLists.txt em {{.LayoutModularLibDir}}/ define o target ${PROJECT_NAME}.
+add_subdirectory({{.LayoutCMakeSubdir}})
+{{if .IsExecutable}}
+# O executável (apps/main.cpp) é definido aqui e linka à biblioteca acima.
+add_executable(${PROJECT_NAME}_app
+    apps/main.cpp
+)
+target_include_directories(${PROJECT_NAME}_app
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/{{.LayoutModularLibDir}}/include
+)
+target_link_libraries(${PROJECT_NAME}_app
+    PRIVATE
+        project_warnings
+        ${PROJECT_NAME}::${PROJECT_NAME}
+)
+set_target_properties(${PROJECT_NAME}_app PROPERTIES
+    CXX_STANDARD          {{.Standard}}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS        OFF
+    OUTPUT_NAME           "{{.Name}}"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+{{end}}
+{{else}}
+add_subdirectory({{.LayoutCMakeSubdir}})
+{{end}}
 
 # =============================================================================
 # Testes
@@ -196,6 +233,7 @@ message(STATUS "  Compilador       : ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPIL
 message(STATUS "  Padrão C++       : C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Tipo de build    : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Diretório de build: ${CMAKE_BINARY_DIR}")
+message(STATUS "  Layout           : {{.Layout}}")
 message(STATUS "  Testes           : {{printf "${%s_BUILD_TESTS}" .NameUpper}}")
 message(STATUS "")
 `
@@ -204,104 +242,127 @@ message(STATUS "")
 // Template: src/CMakeLists.txt
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplSrcCMake é o template para src/CMakeLists.txt.
+// tmplSrcCMake é o template para o CMakeLists.txt do subdiretório de fontes.
+//
+// Este arquivo é gerado no subdiretório indicado pelo layout:
+//   - separate / flat / two-root: src/CMakeLists.txt
+//   - merged:                     <nome>/CMakeLists.txt
+//   - modular:                    libs/<nome>/CMakeLists.txt
+//
+// O campo {{.LayoutCMakeIncludeBlock}} contém o bloco pré-formatado de
+// target_include_directories() correto para o layout escolhido.
 //
 // O conteúdo gerado depende do tipo de projeto:
-//   - Executável:         add_executable() + target_link_libraries()
-//   - Biblioteca estática: add_library(STATIC) + target_include_directories()
-//   - Header-only:         add_library(INTERFACE) + target_include_directories()
+//   - Executável:          add_executable()
+//   - Biblioteca estática: add_library(STATIC)
+//   - Header-only:         add_library(INTERFACE)
 const tmplSrcCMake = `# =============================================================================
-# src/CMakeLists.txt — Target principal de {{.Name}}
+# =============================================================================
+# CMakeLists.txt — Target principal de {{.Name}}
+# =============================================================================
+# Layout ativo: {{.Layout}}
+# Para detalhes sobre o layout, veja o CMakeLists.txt raiz.
 # =============================================================================
 {{if .IsExecutable}}
 # ── Executável ────────────────────────────────────────────────────────────────
-
-add_executable(${PROJECT_NAME}
-    main.cpp
-    # Adicione outros arquivos .cpp aqui conforme o projeto crescer.
-    # Exemplo:
-    #   utils.cpp
-    #   core/engine.cpp
+{{if .LayoutIsModular}}
+# No layout modular, o executável (apps/main.cpp) é definido no CMakeLists.txt
+# raiz para que possa linkar com o target desta biblioteca.
+# Este arquivo define apenas a biblioteca reutilizável.
+add_library(${PROJECT_NAME} STATIC
+    src/{{.NameSnake}}.cpp
+    # Adicione mais arquivos de implementação aqui.
 )
 
-# Diretórios de include acessíveis ao target.
-# PRIVATE: apenas para este target (arquivos .cpp)
-# PUBLIC:  propagado para quem fizer target_link_libraries() com este target
+add_library({{.Name}}::{{.Name}} ALIAS ${PROJECT_NAME})
+
 target_include_directories(${PROJECT_NAME}
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${PROJECT_SOURCE_DIR}/include
+{{.LayoutCMakeIncludeBlock}}
 )
 
-# Aplica as flags de warning definidas em cmake/CompilerWarnings.cmake.
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         project_warnings
-        # Adicione outras dependências aqui:
+)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_STANDARD          {{.Standard}}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS        OFF
+)
+{{else}}
+add_executable(${PROJECT_NAME}
+    main.cpp
+    # Adicione outros arquivos .cpp aqui conforme o projeto crescer.
+)
+
+target_include_directories(${PROJECT_NAME}
+{{.LayoutCMakeIncludeBlock}}
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        project_warnings
+        # Adicione dependências aqui:
         # fmt::fmt
         # nlohmann_json::nlohmann_json
 )
 
-# Propriedades adicionais do target
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD          {{.Standard}}
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS        OFF
 )
+{{end}}
 {{end}}{{if .IsStaticLib}}
 # ── Biblioteca Estática ───────────────────────────────────────────────────────
-
+{{if .LayoutIsModular}}
+add_library(${PROJECT_NAME} STATIC
+    src/{{.NameSnake}}.cpp
+    # Adicione mais arquivos de implementação aqui.
+)
+{{else}}
 add_library(${PROJECT_NAME} STATIC
     {{.NameSnake}}.cpp
-    # Adicione outros arquivos de implementação aqui.
+    # Adicione mais arquivos de implementação aqui.
 )
+{{end}}
 
-# Alias com namespace — permite usar o target como {{.Name}}::{{.Name}}
-# em outros projetos que consumirem esta biblioteca via FetchContent ou find_package().
+# Alias com namespace — permite uso como {{.Name}}::{{.Name}} via find_package()
+# ou FetchContent sem precisar conhecer o nome interno do target.
 add_library({{.Name}}::{{.Name}} ALIAS ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME}
-    # PUBLIC: os headers em include/ são parte da API pública e devem ser
-    # visíveis tanto para este target quanto para quem o consome.
-    PUBLIC
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
+{{.LayoutCMakeIncludeBlock}}
 )
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         project_warnings
-        # Adicione dependências privadas (implementação) aqui.
+        # Dependências privadas (implementação) aqui.
     PUBLIC
-        # Adicione dependências públicas (API) aqui.
+        # Dependências públicas (propagadas à API) aqui.
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD          {{.Standard}}
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS        OFF
-    # Nome do arquivo gerado: lib{{.NameSnake}}.a (Linux) / {{.NameSnake}}.lib (Windows)
-    OUTPUT_NAME "{{.NameSnake}}"
+    OUTPUT_NAME           "{{.NameSnake}}"
 )
 {{end}}{{if .IsHeaderOnly}}
 # ── Biblioteca Header-Only (INTERFACE) ────────────────────────────────────────
-# Bibliotecas header-only não compilam nenhum .cpp; o CMake as representa
-# como targets INTERFACE que apenas propagam includes e flags de compilação.
+# Targets INTERFACE não compilam fontes; apenas propagam includes e flags.
 
 add_library(${PROJECT_NAME} INTERFACE)
 
-# Alias com namespace
 add_library({{.Name}}::{{.Name}} ALIAS ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME}
-    INTERFACE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+{{.LayoutCMakeIncludeBlock}}
 )
 
-# Requisito de padrão C++ propagado para quem consumir esta biblioteca.
+# Propaga o requisito de padrão C++ para quem consumir esta biblioteca.
 target_compile_features(${PROJECT_NAME}
     INTERFACE cxx_std_{{.Standard}}
 )
@@ -315,10 +376,13 @@ target_compile_features(${PROJECT_NAME}
 // tmplTestsCMake é o template para tests/CMakeLists.txt.
 // Registra os executáveis de teste com CTest via add_test().
 const tmplTestsCMake = `# =============================================================================
+# =============================================================================
 # tests/CMakeLists.txt — Testes de {{.Name}}
 # =============================================================================
+# Layout ativo: {{.Layout}}
+#
 # Os testes são executados com:
-#   cd build && ctest --output-on-failure
+#   cmake --preset debug && ctest --preset test-debug --output-on-failure
 #   cd build && ctest -V                  (verbose)
 #   cd build && ctest -R <nome>           (filtrar por nome)
 # =============================================================================
@@ -326,7 +390,7 @@ const tmplTestsCMake = `# ======================================================
 # ── Target de teste principal ─────────────────────────────────────────────────
 
 add_executable({{.NameSnake}}_tests
-    test_main.cpp
+    {{if eq .Layout "merged"}}driver.cpp{{else}}test_main.cpp{{end}}
     # Adicione arquivos de teste adicionais aqui:
     # test_feature_a.cpp
     # test_feature_b.cpp
@@ -334,7 +398,7 @@ add_executable({{.NameSnake}}_tests
 
 target_include_directories({{.NameSnake}}_tests
     PRIVATE
-        ${PROJECT_SOURCE_DIR}/include
+{{.LayoutCMakeTestIncludeBlock}}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

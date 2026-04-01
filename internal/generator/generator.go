@@ -7,6 +7,7 @@
 //   - clang.go      — Geração de .clangd e .clang-format
 //   - ide/          — Configurações específicas de IDE (VSCode, CLion, Neovim)
 //   - packages/     — Integração com VCPKG e FetchContent
+//   - layout/       — Especificações de estrutura de pastas (Separate, Merged, Flat, Modular, Two-Root)
 //
 // O ponto de entrada público é Generator, criado via New() e executado via Generate().
 package generator
@@ -22,6 +23,7 @@ import (
 
 	"cpp-gen/internal/config"
 	"cpp-gen/internal/generator/ide"
+	"cpp-gen/internal/generator/layout"
 	"cpp-gen/internal/generator/packages"
 )
 
@@ -94,6 +96,43 @@ type TemplateData struct {
 	UseGit         bool // inicializar repositório Git
 	UseClangd      bool // gerar .clangd
 	UseClangFormat bool // gerar .clang-format
+
+	// ── Layout de pastas ──────────────────────────────────────────────────────
+	// Derivados do layout.Spec calculado em buildTemplateData().
+
+	// Layout é o identificador do padrão de pastas escolhido (ex: "separate").
+	Layout string
+
+	// LayoutNote é um comentário explicativo inserido no CMakeLists.txt raiz
+	// descrevendo a convenção de layout adotada.
+	LayoutNote string
+
+	// LayoutCMakeSubdir é o argumento de add_subdirectory() no CMakeLists.txt raiz
+	// para o target principal (ex: "src", "mylib", "libs/mylib").
+	LayoutCMakeSubdir string
+
+	// LayoutCMakeIncludeBlock é o bloco pré-formatado de target_include_directories()
+	// do target principal, pronto para inserção direta no template src/CMakeLists.txt.
+	LayoutCMakeIncludeBlock string
+
+	// LayoutCMakeTestIncludeBlock é o bloco de include dirs para o target de testes.
+	LayoutCMakeTestIncludeBlock string
+
+	// LayoutIncludePrefix é o prefixo de diretório usado em #include dos arquivos
+	// C++ gerados (ex: "mylib/" → #include "mylib/file.hpp" ; "" → #include "file.hpp").
+	LayoutIncludePrefix string
+
+	// LayoutIsModular indica que o layout usa libs/<nome>/ com executável em apps/.
+	// Quando true, o cmake.go adiciona o target executável diretamente no root CMakeLists.txt.
+	LayoutIsModular bool
+
+	// LayoutModularLibDir é o caminho relativo da biblioteca no layout modular
+	// (ex: "libs/mylib"). Vazio em todos os outros layouts.
+	LayoutModularLibDir string
+
+	// LayoutSpec é uma referência ao Spec completo, disponível para os geradores
+	// de estrutura e CMake que precisam dos caminhos de arquivo.
+	LayoutSpec *layout.Spec
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +147,9 @@ type Generator struct {
 
 	// data são os dados derivados de cfg, prontos para uso nos templates.
 	data *TemplateData
+
+	// spec é o layout de pastas resolvido para este projeto.
+	spec *layout.Spec
 
 	// root é o caminho absoluto do diretório raiz do projeto a ser criado.
 	root string
@@ -132,15 +174,18 @@ type stepResult struct {
 
 // New cria um novo Generator a partir da ProjectConfig e da flag de verbose.
 //
-// Deriva automaticamente o TemplateData (formas do nome, flags booleanas, etc.)
-// e calcula o caminho raiz do projeto a ser gerado.
+// Deriva automaticamente o TemplateData (formas do nome, flags booleanas, etc.),
+// resolve o layout de pastas e calcula o caminho raiz do projeto a ser gerado.
 func New(cfg *config.ProjectConfig, verbose bool) *Generator {
-	data := buildTemplateData(cfg)
+	nameSnake := toSnakeCase(cfg.Name)
+	spec := layout.Resolve(cfg.Name, nameSnake, cfg.Layout, cfg.ProjectType)
+	data := buildTemplateData(cfg, spec)
 	root := cfg.ProjectPath()
 
 	return &Generator{
 		cfg:     cfg,
 		data:    data,
+		spec:    spec,
 		root:    root,
 		verbose: verbose,
 	}
@@ -201,7 +246,7 @@ func (g *Generator) Generate() error {
 
 // runStructure cria a hierarquia de diretórios e os arquivos fonte C++ iniciais.
 func (g *Generator) runStructure() error {
-	return generateStructure(g.root, g.data, g.verbose)
+	return generateStructure(g.root, g.data, g.spec, g.verbose)
 }
 
 // runCMake gera todos os arquivos CMake do projeto:
@@ -289,10 +334,10 @@ func (g *Generator) printStepReport() {
 // buildTemplateData — derivação dos dados do template
 // ─────────────────────────────────────────────────────────────────────────────
 
-// buildTemplateData converte uma ProjectConfig em TemplateData, calculando
-// todas as formas derivadas do nome e as flags booleanas necessárias
-// para a lógica condicional dos templates.
-func buildTemplateData(cfg *config.ProjectConfig) *TemplateData {
+// buildTemplateData converte uma ProjectConfig + layout.Spec em TemplateData,
+// calculando todas as formas derivadas do nome, flags booleanas e campos de
+// layout necessários para a lógica condicional dos templates.
+func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateData {
 	return &TemplateData{
 		// Formas do nome
 		Name:       cfg.Name,
@@ -328,6 +373,17 @@ func buildTemplateData(cfg *config.ProjectConfig) *TemplateData {
 		UseGit:         cfg.UseGit,
 		UseClangd:      cfg.UseClangd,
 		UseClangFormat: cfg.UseClangFormat,
+
+		// Layout de pastas — derivado do layout.Spec resolvido
+		Layout:                      string(spec.Kind),
+		LayoutNote:                  spec.LayoutNote,
+		LayoutCMakeSubdir:           spec.CMakeSubdir,
+		LayoutCMakeIncludeBlock:     spec.CMakeIncludeBlock,
+		LayoutCMakeTestIncludeBlock: spec.CMakeTestIncludeBlock,
+		LayoutIncludePrefix:         spec.IncludePrefix,
+		LayoutIsModular:             spec.Kind == config.LayoutModular,
+		LayoutModularLibDir:         spec.CMakeModularLibDir,
+		LayoutSpec:                  spec,
 	}
 }
 

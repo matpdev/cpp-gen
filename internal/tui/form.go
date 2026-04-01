@@ -34,6 +34,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	var (
 		standard    = string(cfg.Standard)
 		projectType = string(cfg.ProjectType)
+		layout      = string(cfg.Layout)
 		pkgManager  = string(cfg.PackageManager)
 		ide         = string(cfg.IDE)
 	)
@@ -75,7 +76,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	groupTechnical := huh.NewGroup(
 		huh.NewNote().
 			Title("Configurações C++").
-			Description("Defina o padrão da linguagem e o tipo de artefato."),
+			Description("Defina o padrão da linguagem, tipo de artefato e estrutura de pastas."),
 
 		huh.NewSelect[string]().
 			Title("Padrão C++").
@@ -96,6 +97,33 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				huh.NewOption("Header-Only      — add_library(INTERFACE)", string(config.TypeHeaderOnly)),
 			).
 			Value(&projectType),
+
+		huh.NewSelect[string]().
+			Title("Layout de pastas").
+			Description("Convenção de organização de diretórios e headers do projeto.").
+			Options(
+				huh.NewOption(
+					"Separate  — include/<nome>/ + src/  (clássico CMake)",
+					string(config.LayoutSeparate),
+				),
+				huh.NewOption(
+					"Merged    — <nome>/  headers e .cpp juntos  (Pitchfork/P1204R0)",
+					string(config.LayoutMerged),
+				),
+				huh.NewOption(
+					"Flat      — src/  tudo junto, sem separação",
+					string(config.LayoutFlat),
+				),
+				huh.NewOption(
+					"Modular   — libs/<nome>/  multi-módulo  (Pitchfork libs/)",
+					string(config.LayoutModular),
+				),
+				huh.NewOption(
+					"Two-Root  — include/ + src/  sem namespace subdir",
+					string(config.LayoutTwoRoot),
+				),
+			).
+			Value(&layout),
 	)
 
 	// ── Grupo 3: Gerenciador de Pacotes ───────────────────────────────────────
@@ -176,6 +204,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	// Converte as variáveis de string de volta para os tipos customizados
 	cfg.Standard = config.CppStandard(standard)
 	cfg.ProjectType = config.ProjectType(projectType)
+	cfg.Layout = config.FolderLayout(layout)
 	cfg.PackageManager = config.PackageManager(pkgManager)
 	cfg.IDE = config.IDE(ide)
 

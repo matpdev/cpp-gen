@@ -52,6 +52,7 @@ var newCmd = &cobra.Command{
     --author "Fulano" \
     --std 20 \
     --type executable \
+    --layout merged \
     --pkg vcpkg \
     --ide vscode`,
 }
@@ -109,6 +110,10 @@ func init() {
 	newCmd.Flags().String(
 		"ide", "none",
 		"IDE alvo: none | vscode | clion | nvim | zed",
+	)
+	newCmd.Flags().String(
+		"layout", "separate",
+		"Layout de pastas: separate | merged | flat | modular | two-root",
 	)
 
 	// ── Flags de funcionalidades opcionais ────────────────────────────────────
@@ -223,6 +228,15 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 	}
 	if v, _ := cmd.Flags().GetString("version"); v != "" {
 		cfg.Version = v
+	}
+
+	// ── Layout de pastas ──────────────────────────────────────────────────────
+	if layoutStr, _ := cmd.Flags().GetString("layout"); layoutStr != "" {
+		l, err := parseLayout(layoutStr)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Layout = l
 	}
 
 	// ── Padrão C++ ────────────────────────────────────────────────────────────
@@ -351,6 +365,27 @@ func parseIDE(s string) (config.IDE, error) {
 	}
 }
 
+// parseLayout converte uma string (ex: "merged") para config.FolderLayout.
+// Aceita variações comuns com hífen, underscore e sem separador.
+func parseLayout(s string) (config.FolderLayout, error) {
+	switch strings.ToLower(s) {
+	case "separate", "sep":
+		return config.LayoutSeparate, nil
+	case "merged", "merge", "pitchfork":
+		return config.LayoutMerged, nil
+	case "flat":
+		return config.LayoutFlat, nil
+	case "modular", "mod", "libs":
+		return config.LayoutModular, nil
+	case "two-root", "tworoot", "two_root", "split":
+		return config.LayoutTwoRoot, nil
+	default:
+		return "", fmt.Errorf(
+			"layout inválido %q; valores aceitos: separate, merged, flat, modular, two-root", s,
+		)
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Saída formatada
 // ─────────────────────────────────────────────────────────────────────────────
@@ -379,6 +414,7 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 		tui.FormatKeyValue("Versão", cfg.Version),
 		tui.FormatKeyValue("Padrão C++", cfg.Standard.Label()),
 		tui.FormatKeyValue("Tipo", cfg.ProjectType.Label()),
+		tui.FormatKeyValue("Layout", cfg.Layout.Label()),
 		tui.FormatKeyValue("Pacotes", cfg.PackageManager.Label()),
 		tui.FormatKeyValue("IDE", cfg.IDE.Label()),
 		tui.FormatKeyValue("Git", boolLabel(cfg.UseGit)),
