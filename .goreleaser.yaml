@@ -77,41 +77,21 @@ checksum:
   algorithm: sha256
 
 # ── AUR ───────────────────────────────────────────────────────────────────────
-# Publishes the PKGBUILD automatically to the Arch User Repository after release.
+# AUR publishing is handled manually in .github/workflows/release.yml via
+# ssh-agent + system git, bypassing goreleaser's built-in AUR integration.
 #
-# Prerequisites:
-#   1. Create an account at https://aur.archlinux.org
-#   2. Generate an SSH key pair: ssh-keygen -t ed25519 -f ~/.ssh/aur
-#   3. Add the public key to your AUR account: https://aur.archlinux.org/account/
-#   4. Register the package with an initial push (branch MUST be master):
-#        git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/cpp-gen-bin.git
-#        cp aur/PKGBUILD aur/.SRCINFO aur/LICENSE <cloned-dir>/
-#        cd <cloned-dir> && git add PKGBUILD .SRCINFO LICENSE && git commit -m "Initial release" && git push
-#   5. Add the private key as a GitHub repository secret named AUR_KEY
+# The manual approach avoids "error in libcrypto" caused by goreleaser passing
+# the private key file path to go-git/system SSH in a way that OpenSSH on the
+# GitHub Actions runner cannot parse.
 #
-# Note: The AUR only accepts pushes to the `master` branch.
-# See: https://goreleaser.com/customization/aur/
+# The release.yml workflow:
+#   1. Decodes the base64-encoded AUR_KEY secret to ~/.ssh/aur_key
+#   2. Loads it into ssh-agent (key stays in memory, no file reading by SSH)
+#   3. Clones ssh://aur@aur.archlinux.org/cpp-gen-bin.git
+#   4. Generates PKGBUILD (from aur/PKGBUILD template) with real checksums
+#   5. Generates .SRCINFO inline
+#   6. Commits and pushes to branch master
 
-aurs:
-  - name: cpp-gen-bin
-    homepage: "https://github.com/matpdev/cpp-gen"
-    description: "Modern C++ project generator with CMake, package managers, IDE configurations and development tools."
-    maintainers:
-      - "matpdev <matheus2ep at gmail dot com>"
-    license: MIT
-    private_key: "{{ .Env.AUR_KEY }}"
-    git_url: "ssh://aur@aur.archlinux.org/cpp-gen-bin.git"
-    provides:
-      - cpp-gen
-    conflicts:
-      - cpp-gen
-    package: |-
-      install -Dm755 "./cpp-gen"   "${pkgdir}/usr/bin/cpp-gen"
-      install -Dm644 "./LICENSE"   "${pkgdir}/usr/share/licenses/cpp-gen-bin/LICENSE"
-      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/cpp-gen-bin/README.md"
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 # Generated from commit messages following the Conventional Commits convention.
