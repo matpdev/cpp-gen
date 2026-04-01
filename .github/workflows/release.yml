@@ -11,15 +11,14 @@
 #       ↓
 #   Publish to AUR                                      (only if AUR_KEY is set)
 #
-# ── AUR secret setup ──────────────────────────────────────────────────────────
-# Store the SSH private key as base64 to avoid newline corruption from GitHub
-# Actions secret expansion. Run once on your machine:
+# ── AUR_KEY secret ────────────────────────────────────────────────────────────
+# Store the raw content of your AUR SSH private key as the AUR_KEY secret.
+# The key must have NO passphrase. To verify/strip the passphrase locally:
 #
-#   Linux:  base64 -w 0 ~/.ssh/aur > /tmp/aur_b64.txt
-#   macOS:  base64 -i  ~/.ssh/aur > /tmp/aur_b64.txt
+#   ssh-keygen -p -N "" -f ~/.ssh/aur
 #
 # Then go to: Settings → Secrets and variables → Actions → AUR_KEY → Update
-# and paste the single-line base64 output.
+# and paste the full content of ~/.ssh/aur (including BEGIN/END lines).
 # ==============================================================================
 
 name: Release
@@ -61,7 +60,7 @@ jobs:
       - name: Test
         run: go test -race ./...
 
-      # ── Goreleaser (GitHub Release only, AUR handled separately below) ──────
+      # ── Goreleaser (GitHub Release only — AUR handled below) ─────────────────
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -71,32 +70,75 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── AUR publish ──────────────────────────────────────────────────────────
-      # Uses ssh-agent to load the key into memory, bypassing the OpenSSH
-      # file-loading path that causes "error in libcrypto" with go-git / git.
-      # The AUR_KEY secret must be base64-encoded (see header comment above).
-      - name: Decode AUR key
+      # ── AUR publish ───────────────────────────────────────────────────────────
+      # Checks whether AUR_KEY is set and writes it to disk via Python,
+      # auto-detecting raw PEM or base64-encoded content.
+      - name: Prepare AUR key
         id: aur
         env:
-          AUR_KEY_B64: ${{ secrets.AUR_KEY }}
+          AUR_KEY: ${{ secrets.AUR_KEY }}
         run: |
-          if [ -z "$AUR_KEY_B64" ]; then
+          if [ -z "$AUR_KEY" ]; then
             echo "has_key=false" >> "$GITHUB_OUTPUT"
             echo "::warning title=AUR_KEY ausente::Publicação no AUR ignorada."
             exit 0
           fi
 
           mkdir -p ~/.ssh
-          echo "$AUR_KEY_B64" | base64 -d > ~/.ssh/aur_key
-          chmod 600 ~/.ssh/aur_key
+          chmod 700 ~/.ssh
 
-          if ! ssh-keygen -l -f ~/.ssh/aur_key > /dev/null 2>&1; then
+          # Write key via Python: handles raw PEM and base64, normalises line endings
+          python3 << 'PYEOF'
+          import os, base64, sys
+
+          raw = os.environ["AUR_KEY"]
+
+          # Normalise CRLF
+          raw = raw.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+          # Auto-detect base64: single line with no PEM header
+          if "\n" not in raw and not raw.startswith("---"):
+              try:
+                  raw = base64.b64decode(raw).decode("utf-8").strip()
+                  print("INFO: AUR_KEY decoded from base64")
+              except Exception:
+                  pass  # treat as raw
+
+          raw += "\n"  # ensure trailing newline
+
+          path = os.path.expanduser("~/.ssh/aur_key")
+          with open(path, "w") as f:
+              f.write(raw)
+          os.chmod(path, 0o600)
+
+          lines = raw.splitlines()
+          print(f"INFO: key first line : {lines[0]}")
+          print(f"INFO: key last line  : {lines[-1]}")
+          print(f"INFO: key line count : {len(lines)}")
+          PYEOF
+
+          # Strip passphrase (no-op if already empty; fails silently if passphrase set)
+          ssh-keygen -p -N "" -f ~/.ssh/aur_key < /dev/null 2>/dev/null \
+            && echo "INFO: key reformatted (passphrase cleared)" \
+            || echo "INFO: key reformat skipped"
+
+          if ! ssh-keygen -y -f ~/.ssh/aur_key > /dev/null 2>&1; then
+            echo "::error title=AUR_KEY inválida::Não foi possível extrair a chave pública."
+            echo "::error title=AUR_KEY inválida::Verifique se a chave não tem passphrase e está no formato OpenSSH."
             echo "has_key=false" >> "$GITHUB_OUTPUT"
-            echo "::error title=AUR_KEY inválida::Chave não reconhecida. Confirme que o secret está em base64."
             exit 0
           fi
 
           echo "has_key=true" >> "$GITHUB_OUTPUT"
+
+      # webfactory/ssh-agent loads the key into the SSH agent via Node.js,
+      # bypassing the OpenSSH/libcrypto file-loading path that fails on
+      # some runner configurations.
+      - name: Start SSH agent for AUR
+        if: steps.aur.outputs.has_key == 'true'
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.AUR_KEY }}
 
       - name: Publish to AUR
         if: steps.aur.outputs.has_key == 'true'
@@ -106,12 +148,8 @@ jobs:
           GIT_COMMITTER_NAME: goreleaserbot
           GIT_COMMITTER_EMAIL: bot@goreleaser.com
         run: |
-          # ── Load key into agent (avoids all file-based libcrypto issues) ────
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/aur_key
           ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
 
-          # ── Version and checksums ────────────────────────────────────────────
           VERSION="${GITHUB_REF_NAME#v}"
           SHA_X86_64=$(grep "linux_amd64.tar.gz" dist/checksums.txt | awk '{print $1}')
           SHA_I686=$(grep "linux_386.tar.gz"     dist/checksums.txt | awk '{print $1}')
@@ -121,11 +159,11 @@ jobs:
             exit 1
           fi
 
-          # ── Clone AUR repo ───────────────────────────────────────────────────
+          # Clone AUR repo (empty repo warning is expected on first push)
           git -c init.defaultBranch=master \
             clone ssh://aur@aur.archlinux.org/cpp-gen-bin.git /tmp/aur-cpp-gen-bin
 
-          # ── Generate PKGBUILD with real version and checksums ────────────────
+          # Generate PKGBUILD with real version and checksums
           sed \
             -e "s/^pkgver=.*/pkgver=${VERSION}/" \
             -e "s/^pkgrel=.*/pkgrel=1/" \
@@ -133,7 +171,7 @@ jobs:
             -e "s/sha256sums_i686=('SKIP')/sha256sums_i686=('${SHA_I686}')/" \
             aur/PKGBUILD > /tmp/aur-cpp-gen-bin/PKGBUILD
 
-          # ── Generate .SRCINFO (printf \t avoids literal tabs in YAML) ────────
+          # Generate .SRCINFO (printf \t avoids literal tabs in YAML)
           {
             printf 'pkgbase = cpp-gen-bin\n'
             printf '\tpkgdesc = Modern C++ project generator with CMake, package managers, IDE configurations and development tools\n'
@@ -154,13 +192,11 @@ jobs:
             printf 'pkgname = cpp-gen-bin\n'
           } > /tmp/aur-cpp-gen-bin/.SRCINFO
 
-          # ── Copy LICENSE ─────────────────────────────────────────────────────
           cp aur/LICENSE /tmp/aur-cpp-gen-bin/LICENSE
 
-          # ── Commit and push (branch must be master for AUR) ──────────────────
           cd /tmp/aur-cpp-gen-bin
           git add PKGBUILD .SRCINFO LICENSE
-          git diff --staged --quiet && echo "Nothing to commit, skipping." && exit 0
+          git diff --staged --quiet && echo "Nothing to commit." && exit 0
           git commit -m "Update to v${VERSION}"
           git push origin master
 
