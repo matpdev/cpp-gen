@@ -56,8 +56,8 @@ jobs:
         run: go test -race ./...
 
       # goreleaser v2 requires private_key to be a FILE PATH, not inline content.
-      # This step writes the secret to a temp file and exposes its path.
-      # If AUR_KEY is absent the AUR publisher is skipped via --skip=aurs.
+      # Writes the secret to ~/.ssh/aur_key and sets has_key=true/false.
+      # If AUR_KEY is absent, the AUR publisher is skipped via --skip=aurs.
       - name: Setup AUR key
         id: aur
         env:
@@ -67,11 +67,9 @@ jobs:
             mkdir -p ~/.ssh
             echo "$AUR_KEY_CONTENT" > ~/.ssh/aur_key
             chmod 600 ~/.ssh/aur_key
-            echo "key_path=$HOME/.ssh/aur_key" >> "$GITHUB_OUTPUT"
-            echo "goreleaser_args=release --clean"  >> "$GITHUB_OUTPUT"
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
           else
-            echo "key_path="                                          >> "$GITHUB_OUTPUT"
-            echo "goreleaser_args=release --clean --skip=aurs"       >> "$GITHUB_OUTPUT"
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
             echo "::warning title=AUR_KEY ausente::Publicação no AUR ignorada. Configure o secret AUR_KEY para habilitar."
           fi
 
@@ -80,14 +78,14 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: ${{ steps.aur.outputs.goreleaser_args }}
+          args: >-
+            release --clean
+            ${{ steps.aur.outputs.has_key != 'true' && '--skip=aurs' || '' }}
         env:
-          # GitHub token to create the release and upload assets.
-          # GITHUB_TOKEN is automatically injected by Actions — no extra configuration needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Path to the SSH private key file written by the "Setup AUR key" step above.
-          # goreleaser v2 requires a file path here, not inline key content.
-          AUR_KEY: ${{ steps.aur.outputs.key_path }}
+          # goreleaser v2 expects a file path for private_key, not inline key content.
+          # Points to the file written by the "Setup AUR key" step above.
+          AUR_KEY: /home/runner/.ssh/aur_key
 
   # ── Completion notification ───────────────────────────────────────────────────
   notify:
