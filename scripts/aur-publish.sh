@@ -359,11 +359,14 @@ git -c init.defaultBranch=master clone "$AUR_REPO" "$AUR_CLONE" 2>&1 | while IFS
   dim "$line"
 done
 
-# AUR always starts on master — rename if needed
+# For empty repos (first push) HEAD has no commits — skip rename.
+# For non-empty repos, rename to master only if needed (AUR requires master).
 cd "$AUR_CLONE"
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "master")
-if [[ "$CURRENT_BRANCH" != "master" ]]; then
-  git branch -m "$CURRENT_BRANCH" master
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  if [[ "$CURRENT_BRANCH" != "master" ]]; then
+    git branch -m "$CURRENT_BRANCH" master
+  fi
 fi
 
 success "Clonado" "$AUR_CLONE"
