@@ -55,18 +55,21 @@ jobs:
       - name: Test
         run: go test -race ./...
 
-      # Determines whether to skip AUR publishing.
-      # AUR publishing requires the AUR_KEY secret to be configured.
-      # If absent, --skip=aurs is appended so the rest of the release proceeds normally.
-      - name: Check AUR key
-        id: aur_check
+      # goreleaser v2 requires private_key to be a FILE PATH, not inline content.
+      # This step writes the secret to a temp file and exposes its path.
+      # If AUR_KEY is absent the AUR publisher is skipped via --skip=aurs.
+      - name: Setup AUR key
+        id: aur
         run: |
           if [ -n "${{ secrets.AUR_KEY }}" ]; then
-            echo "args=release --clean" >> "$GITHUB_OUTPUT"
-            echo "has_key=true" >> "$GITHUB_OUTPUT"
+            mkdir -p ~/.ssh
+            printf '%s' "${{ secrets.AUR_KEY }}" > ~/.ssh/aur_key
+            chmod 600 ~/.ssh/aur_key
+            echo "key_path=$HOME/.ssh/aur_key" >> "$GITHUB_OUTPUT"
+            echo "goreleaser_args=release --clean"  >> "$GITHUB_OUTPUT"
           else
-            echo "args=release --clean --skip=aurs" >> "$GITHUB_OUTPUT"
-            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "key_path="                                          >> "$GITHUB_OUTPUT"
+            echo "goreleaser_args=release --clean --skip=aurs"       >> "$GITHUB_OUTPUT"
             echo "::warning title=AUR_KEY ausente::Publicação no AUR ignorada. Configure o secret AUR_KEY para habilitar."
           fi
 
@@ -75,15 +78,14 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: ${{ steps.aur_check.outputs.args }}
+          args: ${{ steps.aur.outputs.goreleaser_args }}
         env:
           # GitHub token to create the release and upload assets.
           # GITHUB_TOKEN is automatically injected by Actions — no extra configuration needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # SSH private key registered on AUR for pushing the PKGBUILD automatically.
-          # Add your AUR private key as a repository secret named AUR_KEY.
-          # See: https://goreleaser.com/customization/aur/
-          AUR_KEY: ${{ secrets.AUR_KEY }}
+          # Path to the SSH private key file written by the "Setup AUR key" step above.
+          # goreleaser v2 requires a file path here, not inline key content.
+          AUR_KEY: ${{ steps.aur.outputs.key_path }}
 
   # ── Completion notification ───────────────────────────────────────────────────
   notify:
