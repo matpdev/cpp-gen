@@ -15,7 +15,7 @@ pkgname=cpp-gen-bin
 pkgver=0.1.0
 pkgrel=1
 pkgdesc='Modern C++ project generator with CMake, package managers, IDE configurations and development tools'
-arch=('x86_64' 'aarch64')
+arch=('x86_64' 'i686')
 url='https://github.com/matpdev/cpp-gen'
 license=('MIT')
 provides=('cpp-gen')
@@ -25,12 +25,12 @@ options=('!strip')
 source_x86_64=(
   "${pkgname}-${pkgver}-x86_64.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v${pkgver}/cpp-gen_${pkgver}_linux_amd64.tar.gz"
 )
-source_aarch64=(
-  "${pkgname}-${pkgver}-aarch64.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v${pkgver}/cpp-gen_${pkgver}_linux_arm64.tar.gz"
+source_i686=(
+  "${pkgname}-${pkgver}-i686.tar.gz::https://github.com/matpdev/cpp-gen/releases/download/v${pkgver}/cpp-gen_${pkgver}_linux_386.tar.gz"
 )
 
 sha256sums_x86_64=('SKIP')
-sha256sums_aarch64=('SKIP')
+sha256sums_i686=('SKIP')
 
 package() {
   cd "${srcdir}"

@@ -89,11 +89,9 @@ jobs:
           - goos: linux
             goarch: amd64
           - goos: linux
-            goarch: arm64
+            goarch: "386"
           - goos: darwin
             goarch: amd64
-          - goos: darwin
-            goarch: arm64
 
     steps:
       - name: Checkout

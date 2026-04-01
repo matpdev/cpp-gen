@@ -39,7 +39,12 @@ builds:
 
     goarch:
       - amd64
-      - arm64
+      - "386"
+
+    # darwin/386 is not supported since Go 1.15 / macOS Catalina
+    ignore:
+      - goos: darwin
+        goarch: "386"
 
     # Compilation flags
     flags:
