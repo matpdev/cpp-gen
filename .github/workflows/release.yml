@@ -8,6 +8,8 @@
 #   git commit → scripts/release.sh → tag vX.Y.Z → this workflow → goreleaser
 #                                                                       ↓
 #                                              binários + archives + GitHub Release
+#                                                                       ↓
+#                                              (se AUR_KEY configurado) AUR push
 # ==============================================================================
 
 name: Release
@@ -53,12 +55,27 @@ jobs:
       - name: Test
         run: go test -race ./...
 
+      # Determines whether to skip AUR publishing.
+      # AUR publishing requires the AUR_KEY secret to be configured.
+      # If absent, --skip=aurs is appended so the rest of the release proceeds normally.
+      - name: Check AUR key
+        id: aur_check
+        run: |
+          if [ -n "${{ secrets.AUR_KEY }}" ]; then
+            echo "args=release --clean" >> "$GITHUB_OUTPUT"
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=release --clean --skip=aurs" >> "$GITHUB_OUTPUT"
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=AUR_KEY ausente::Publicação no AUR ignorada. Configure o secret AUR_KEY para habilitar."
+          fi
+
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: ${{ steps.aur_check.outputs.args }}
         env:
           # GitHub token to create the release and upload assets.
           # GITHUB_TOKEN is automatically injected by Actions — no extra configuration needed.
