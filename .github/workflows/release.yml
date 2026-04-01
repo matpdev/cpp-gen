@@ -10,6 +10,19 @@
 #                                              binários + archives + GitHub Release
 #                                                                       ↓
 #                                              (se AUR_KEY configurado) AUR push
+#
+# ── AUR secret setup ──────────────────────────────────────────────────────────
+# The AUR_KEY secret MUST be stored as base64 to avoid newline corruption.
+# GitHub Actions mangles multi-line secrets; base64 encodes them to a single
+# line that is decoded byte-for-byte back to the original key file.
+#
+# One-time setup — encode your AUR SSH private key and store it as AUR_KEY:
+#
+#   Linux:  base64 -w 0 ~/.ssh/aur > aur_key_b64.txt
+#   macOS:  base64 -i  ~/.ssh/aur > aur_key_b64.txt
+#
+# Copy the content of aur_key_b64.txt and paste it as the AUR_KEY secret at:
+#   Settings → Secrets and variables → Actions → New repository secret
 # ==============================================================================
 
 name: Release
@@ -17,7 +30,7 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+" # v1.2.3
+      - "v[0-9]+.[0-9]+.[0-9]+"   # v1.2.3
       - "v[0-9]+.[0-9]+.[0-9]+-*" # v1.2.3-beta.1  (pre-release)
 
 # Minimum permissions required for goreleaser to create the release
@@ -55,23 +68,30 @@ jobs:
       - name: Test
         run: go test -race ./...
 
+      # Decodes the base64-encoded AUR_KEY secret into a proper PEM key file.
       # goreleaser v2 requires private_key to be a FILE PATH, not inline content.
-      # This step writes the secret to a temp file and exposes its path.
-      # If AUR_KEY is absent the AUR publisher is skipped via --skip=aurs.
+      # Storing the key as base64 avoids the newline corruption that GitHub
+      # Actions causes when expanding multi-line secrets — which triggers
+      # "error in libcrypto" from OpenSSH when it tries to parse the key.
       - name: Setup AUR key
         id: aur
         env:
-          AUR_KEY_CONTENT: ${{ secrets.AUR_KEY }}
+          AUR_KEY_B64: ${{ secrets.AUR_KEY }}
         run: |
-          if [ -n "$AUR_KEY_CONTENT" ]; then
+          if [ -n "$AUR_KEY_B64" ]; then
             mkdir -p ~/.ssh
-            echo "$AUR_KEY_CONTENT" > ~/.ssh/aur_key
+            echo "$AUR_KEY_B64" | base64 -d > ~/.ssh/aur_key
             chmod 600 ~/.ssh/aur_key
-            echo "key_path=$HOME/.ssh/aur_key" >> "$GITHUB_OUTPUT"
-            echo "goreleaser_args=release --clean"  >> "$GITHUB_OUTPUT"
+            # Validate the decoded key is parseable before proceeding
+            if ssh-keygen -l -f ~/.ssh/aur_key > /dev/null 2>&1; then
+              echo "has_key=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error title=AUR_KEY inválida::A chave decodificada não é um arquivo de chave SSH válido."
+              echo "::error title=AUR_KEY inválida::Verifique se o secret foi armazenado em base64 (veja o comentário no topo deste arquivo)."
+              echo "has_key=false" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "key_path="                                          >> "$GITHUB_OUTPUT"
-            echo "goreleaser_args=release --clean --skip=aurs"       >> "$GITHUB_OUTPUT"
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
             echo "::warning title=AUR_KEY ausente::Publicação no AUR ignorada. Configure o secret AUR_KEY para habilitar."
           fi
 
@@ -80,14 +100,16 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: ${{ steps.aur.outputs.goreleaser_args }}
+          args: >-
+            release --clean
+            ${{ steps.aur.outputs.has_key != 'true' && '--skip=aurs' || '' }}
         env:
           # GitHub token to create the release and upload assets.
           # GITHUB_TOKEN is automatically injected by Actions — no extra configuration needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Path to the SSH private key file written by the "Setup AUR key" step above.
-          # goreleaser v2 requires a file path here, not inline key content.
-          AUR_KEY: ${{ steps.aur.outputs.key_path }}
+          # goreleaser v2 expects a FILE PATH for private_key, not inline key content.
+          # Points to the file written and validated by the "Setup AUR key" step above.
+          AUR_KEY: /home/runner/.ssh/aur_key
 
   # ── Completion notification ───────────────────────────────────────────────────
   notify:
