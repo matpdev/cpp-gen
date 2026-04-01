@@ -1,6 +1,6 @@
 # cpp-gen
 
-> Gerador moderno de projetos C++ com CMake, gerenciadores de pacotes, configurações de IDE e ferramentas de desenvolvimento.
+> Modern C++ project generator with CMake, package managers, IDE configurations and development tools.
 
 ![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -8,40 +8,40 @@
 
 ---
 
-## Sumário
+## Table of Contents
 
-- [Sobre](#sobre)
-- [Instalação](#instalação)
-- [Uso](#uso)
-- [O que é gerado](#o-que-é-gerado)
-- [Opções e flags](#opções-e-flags)
-- [Estrutura do projeto gerado](#estrutura-do-projeto-gerado)
-- [Desenvolvimento](#desenvolvimento)
-- [Arquitetura interna](#arquitetura-interna)
-- [Licença](#licença)
-
----
-
-## Sobre
-
-`cpp-gen` é uma ferramenta CLI escrita em Go que automatiza a criação de projetos C++ modernos,
-eliminando o tempo gasto na configuração inicial de:
-
-- **CMake** hierárquico com boas práticas (CMake 3.20+, CMakePresets.json)
-- **Gerenciadores de pacotes**: VCPKG (manifest mode) ou FetchContent nativo
-- **IDEs**: Visual Studio Code, CLion ou Neovim com configurações completas
-- **Ferramentas de qualidade**: Clangd LSP, Clang-Format, flags de warning
-- **Git**: repositório inicializado, `.gitignore` abrangente e README
+- [About](#about)
+- [Installation](#installation)
+- [Usage](#usage)
+- [What is generated](#what-is-generated)
+- [Options and flags](#options-and-flags)
+- [Project structure](#project-structure)
+- [Development](#development)
+- [Internal architecture](#internal-architecture)
+- [License](#license)
 
 ---
 
-## Instalação
+## About
 
-### Pré-requisitos
+`cpp-gen` is a CLI tool written in Go that automates the creation of modern C++ projects,
+eliminating the time spent on the initial configuration of:
+
+- **CMake** hierarchical with best practices (CMake 3.20+, CMakePresets.json)
+- **Package managers**: VCPKG (manifest mode) or native FetchContent
+- **IDEs**: Visual Studio Code, CLion or Neovim with complete configurations
+- **Quality tools**: Clangd LSP, Clang-Format, warning flags
+- **Git**: initialized repository, comprehensive `.gitignore` and README
+
+---
+
+## Installation
+
+### Prerequisites
 
 - [Go 1.22+](https://go.dev/dl/)
 
-### A partir do código-fonte
+### From source
 
 ```bash
 git clone https://github.com/cpp-gen/cpp-gen.git
@@ -50,7 +50,7 @@ go mod tidy
 go build -o cpp-gen .
 ```
 
-### Instalar globalmente
+### Install globally
 
 ```bash
 go install cpp-gen@latest
@@ -58,118 +58,118 @@ go install cpp-gen@latest
 
 ---
 
-## Uso
+## Usage
 
-### Modo interativo (recomendado)
+### Interactive mode (recommended)
 
 ```bash
-# Abre o formulário TUI passo a passo
+# Opens the step-by-step TUI form
 cpp-gen new
 
-# Com nome pré-preenchido
+# With pre-filled name
 cpp-gen new meu-projeto
 ```
 
-O formulário guia você por todas as opções:
+The form guides you through all the options:
 
 ```
 ⚡ cpp-gen  v0.1.0
 ─────────────────────────────────────────────────────
-  ◆  Estrutura de projeto CMake moderna (3.20+)
-  ◆  Gerenciadores de pacotes: VCPKG ou FetchContent
-  ◆  Configurações para VSCode, CLion e Neovim
-  ◆  Git, .gitignore e README prontos
-  ◆  Clangd e Clang-Format pré-configurados
+  ◆  Modern CMake project structure (3.20+)
+  ◆  Package managers: VCPKG or FetchContent
+  ◆  Configurations for VSCode, CLion and Neovim
+  ◆  Git, .gitignore and README ready
+  ◆  Clangd and Clang-Format pre-configured
 ─────────────────────────────────────────────────────
 
-Uso:  cpp-gen new [nome-do-projeto]
+Usage:  cpp-gen new [project-name]
 ```
 
-### Modo não-interativo (CI/CD e scripts)
+### Non-interactive mode (CI/CD and scripts)
 
 ```bash
 cpp-gen new meu-projeto \
   --no-interactive \
-  --description "Minha aplicação C++" \
-  --author "Fulano" \
+  --description "My C++ application" \
+  --author "John Doe" \
   --std 20 \
   --type executable \
   --pkg vcpkg \
   --ide vscode
 ```
 
-### Outros comandos
+### Other commands
 
 ```bash
-# Exibe versão
+# Display version
 cpp-gen version
 
-# Ajuda geral
+# General help
 cpp-gen --help
 
-# Ajuda do subcomando new
+# Help for the new subcommand
 cpp-gen new --help
 ```
 
 ---
 
-## O que é gerado
+## What is generated
 
-### Exemplo: projeto executável com VSCode e VCPKG
+### Example: executable project with VSCode and VCPKG
 
 ```
 meu-projeto/
-├── CMakeLists.txt              ← Configuração CMake principal
-├── CMakePresets.json           ← Presets debug/release/sanitize/vcpkg
-├── vcpkg.json                  ← Dependências VCPKG (manifest mode)
-├── vcpkg-configuration.json   ← Baseline de versões (builds reprodutíveis)
-├── README.md                  ← README do projeto gerado
-├── .gitignore                 ← Padrões C++/CMake/IDE abrangentes
-├── .clangd                    ← Configuração LSP (compile_commands.json)
-├── .clang-format              ← Regras de formatação (baseado em LLVM)
+├── CMakeLists.txt              ← Main CMake configuration
+├── CMakePresets.json           ← debug/release/sanitize/vcpkg presets
+├── vcpkg.json                  ← VCPKG dependencies (manifest mode)
+├── vcpkg-configuration.json   ← Version baseline (reproducible builds)
+├── README.md                  ← Generated project README
+├── .gitignore                 ← Comprehensive C++/CMake/IDE patterns
+├── .clangd                    ← LSP configuration (compile_commands.json)
+├── .clang-format              ← Formatting rules (LLVM-based)
 │
 ├── cmake/
-│   ├── CompilerWarnings.cmake  ← Flags de warning (GCC/Clang/MSVC)
-│   ├── Vcpkg.cmake            ← Módulo auxiliar de integração VCPKG
-│   └── Dependencies.cmake     ← (se FetchContent) dependências declaradas
+│   ├── CompilerWarnings.cmake  ← Warning flags (GCC/Clang/MSVC)
+│   ├── Vcpkg.cmake            ← VCPKG integration helper module
+│   └── Dependencies.cmake     ← (if FetchContent) declared dependencies
 │
 ├── src/
-│   ├── CMakeLists.txt         ← Target add_executable() ou add_library()
-│   └── main.cpp               ← Código fonte inicial
+│   ├── CMakeLists.txt         ← add_executable() or add_library() target
+│   └── main.cpp               ← Initial source code
 │
 ├── include/
-│   └── meu-projeto/           ← Headers públicos (namespace de include)
+│   └── meu-projeto/           ← Public headers (include namespace)
 │
 ├── tests/
-│   ├── CMakeLists.txt         ← Target de testes com CTest
-│   └── test_main.cpp          ← Testes iniciais com macro CHECK()
+│   ├── CMakeLists.txt         ← Test target with CTest
+│   └── test_main.cpp          ← Initial tests with CHECK() macro
 │
-├── docs/                      ← Documentação (vazio, pronto para Doxygen)
+├── docs/                      ← Documentation (empty, ready for Doxygen)
 │
 └── .vscode/
     ├── tasks.json             ← Configure, Build, Clean, Test, Format
-    ├── launch.json            ← Debug com CodeLLDB e cppdbg/GDB
-    ├── settings.json          ← Clangd, CMake Tools, formatação automática
-    ├── extensions.json        ← Extensões recomendadas
+    ├── launch.json            ← Debug with CodeLLDB and cppdbg/GDB
+    ├── settings.json          ← Clangd, CMake Tools, automatic formatting
+    ├── extensions.json        ← Recommended extensions
     └── c_cpp_properties.json  ← IntelliSense fallback
 ```
 
-### CMakePresets.json gerado
+### Generated CMakePresets.json
 
-| Preset de Configure   | Descrição                                        |
-|-----------------------|--------------------------------------------------|
-| `debug`               | Debug com símbolos completos                     |
-| `release`             | Release com otimizações, sem testes              |
-| `release-with-debug`  | RelWithDebInfo (profiling)                       |
-| `sanitize`            | Debug + AddressSanitizer + UBSanitizer           |
-| `vcpkg-debug`         | Debug com toolchain VCPKG *(se VCPKG selecionado)* |
-| `vcpkg-release`       | Release com VCPKG *(se VCPKG selecionado)*       |
+| Configure Preset      | Description                                       |
+|-----------------------|---------------------------------------------------|
+| `debug`               | Debug with full symbols                           |
+| `release`             | Release with optimizations, no tests              |
+| `release-with-debug`  | RelWithDebInfo (profiling)                        |
+| `sanitize`            | Debug + AddressSanitizer + UBSanitizer            |
+| `vcpkg-debug`         | Debug with VCPKG toolchain *(if VCPKG selected)*  |
+| `vcpkg-release`       | Release with VCPKG *(if VCPKG selected)*          |
 
 ```bash
-# Listar todos os presets
+# List all presets
 cmake --list-presets
 
-# Build rápido
+# Quick build
 cmake --preset debug
 cmake --build --preset build-debug
 ctest --preset test-debug --output-on-failure
@@ -177,78 +177,78 @@ ctest --preset test-debug --output-on-failure
 
 ---
 
-## Opções e flags
+## Options and flags
 
 ### `cpp-gen new`
 
-| Flag                  | Padrão       | Descrição                                              |
-|-----------------------|:------------:|--------------------------------------------------------|
-| `--output`, `-o`      | `.`          | Diretório onde a pasta do projeto será criada          |
-| `--no-interactive`, `-n` | `false`   | Desativa o TUI; usa apenas as flags abaixo             |
-| `--name`              | —            | Nome do projeto (alternativa ao argumento posicional)  |
-| `--description`       | —            | Descrição breve do projeto                             |
-| `--author`            | —            | Nome do autor ou organização                           |
-| `--version`           | `1.0.0`      | Versão inicial (SemVer)                                |
-| `--std`               | `20`         | Padrão C++: `17` \| `20` \| `23`                      |
-| `--type`              | `executable` | `executable` \| `static-lib` \| `header-only`          |
-| `--pkg`               | `none`       | `none` \| `vcpkg` \| `fetchcontent`                    |
-| `--ide`               | `none`       | `none` \| `vscode` \| `clion` \| `nvim`                |
-| `--no-git`            | `false`      | Não inicializar repositório Git                        |
-| `--no-clangd`         | `false`      | Não gerar `.clangd`                                    |
-| `--no-clang-format`   | `false`      | Não gerar `.clang-format`                              |
+| Flag                     | Default      | Description                                             |
+|--------------------------|:------------:|---------------------------------------------------------|
+| `--output`, `-o`         | `.`          | Directory where the project folder will be created      |
+| `--no-interactive`, `-n` | `false`      | Disables the TUI; uses only the flags below             |
+| `--name`                 | —            | Project name (alternative to the positional argument)   |
+| `--description`          | —            | Brief project description                               |
+| `--author`               | —            | Author or organization name                             |
+| `--version`              | `1.0.0`      | Initial version (SemVer)                                |
+| `--std`                  | `20`         | C++ standard: `17` \| `20` \| `23`                     |
+| `--type`                 | `executable` | `executable` \| `static-lib` \| `header-only`           |
+| `--pkg`                  | `none`       | `none` \| `vcpkg` \| `fetchcontent`                     |
+| `--ide`                  | `none`       | `none` \| `vscode` \| `clion` \| `nvim`                 |
+| `--no-git`               | `false`      | Do not initialize a Git repository                      |
+| `--no-clangd`            | `false`      | Do not generate `.clangd`                               |
+| `--no-clang-format`      | `false`      | Do not generate `.clang-format`                         |
 
-### Flags globais
+### Global flags
 
-| Flag             | Descrição                                    |
-|------------------|----------------------------------------------|
-| `--verbose`, `-v` | Exibe cada arquivo gerado durante o processo |
-| `--help`, `-h`   | Exibe ajuda do comando                       |
+| Flag              | Description                                     |
+|-------------------|-------------------------------------------------|
+| `--verbose`, `-v` | Displays each file generated during the process |
+| `--help`, `-h`    | Displays command help                           |
 
 ---
 
-## Estrutura do projeto
+## Project structure
 
 ```
 cpp-gen/
-├── main.go                         ← Ponto de entrada
-├── go.mod                          ← Módulo Go e dependências
+├── main.go                         ← Entry point
+├── go.mod                          ← Go module and dependencies
 │
 ├── cmd/
-│   ├── root.go                     ← Comando raiz (banner, versão)
-│   └── new.go                      ← Subcomando `new` (flags, handler, TUI)
+│   ├── root.go                     ← Root command (banner, version)
+│   └── new.go                      ← `new` subcommand (flags, handler, TUI)
 │
 └── internal/
     ├── config/
-    │   └── config.go               ← Tipos enumerados e ProjectConfig
+    │   └── config.go               ← Enumerated types and ProjectConfig
     │
     ├── tui/
-    │   ├── form.go                 ← Formulário interativo (charmbracelet/huh)
-    │   └── styles.go               ← Estilos lipgloss (cores, layout)
+    │   ├── form.go                 ← Interactive form (charmbracelet/huh)
+    │   └── styles.go               ← lipgloss styles (colors, layout)
     │
     └── generator/
-        ├── generator.go            ← Orquestrador, TemplateData, utilitários
-        ├── structure.go            ← Estrutura de pastas e arquivos C++ iniciais
+        ├── generator.go            ← Orchestrator, TemplateData, utilities
+        ├── structure.go            ← Folder structure and initial C++ files
         ├── cmake.go                ← CMakeLists.txt, CMakePresets.json, helpers
         ├── git.go                  ← Git init, .gitignore, README.md
         ├── clang.go                ← .clangd, .clang-format
         │
         ├── ide/
-        │   ├── ide.go              ← Interface Data, funções públicas, utilitários
+        │   ├── ide.go              ← Data interface, public functions, utilities
         │   ├── vscode.go           ← tasks.json, launch.json, settings, extensions
         │   └── clion.go            ← .idea/, cmake.xml, run configs, .nvim.lua
         │
         └── packages/
             ├── vcpkg.go            ← vcpkg.json, vcpkg-configuration.json, Vcpkg.cmake
-            └── fetchcontent.go     ← cmake/Dependencies.cmake com exemplos comentados
+            └── fetchcontent.go     ← cmake/Dependencies.cmake with commented examples
 ```
 
-### Fluxo de execução
+### Execution flow
 
 ```
 main()
   └── cmd.Execute()
         └── newCmd.RunE  (cmd/new.go)
-              ├── tui.RunForm()          ← formulário interativo
+              ├── tui.RunForm()          ← interactive form
               ├── cfg.Validate()
               ├── printProjectSummary()
               └── generator.New(cfg).Generate()
@@ -262,9 +262,9 @@ main()
 
 ---
 
-## Desenvolvimento
+## Development
 
-### Configurar o ambiente
+### Set up the environment
 
 ```bash
 git clone https://github.com/cpp-gen/cpp-gen.git
@@ -272,7 +272,7 @@ cd cpp-gen
 go mod tidy
 ```
 
-### Executar sem instalar
+### Run without installing
 
 ```bash
 go run . new meu-projeto
@@ -285,84 +285,84 @@ go build -o cpp-gen .
 ./cpp-gen new --help
 ```
 
-### Testes
+### Tests
 
 ```bash
 go test ./...
 go test ./... -v          # verbose
-go test ./... -count=1    # desabilita cache de testes
+go test ./... -count=1    # disable test cache
 ```
 
-### Verificar erros e lint
+### Check errors and lint
 
 ```bash
 go vet ./...
-# Com golangci-lint instalado:
+# With golangci-lint installed:
 golangci-lint run
 ```
 
-### Dependências diretas
+### Direct dependencies
 
-| Pacote                            | Versão   | Uso                                     |
-|-----------------------------------|----------|-----------------------------------------|
-| `github.com/spf13/cobra`          | v1.8.1   | Framework de CLI (comandos e flags)     |
-| `github.com/charmbracelet/huh`    | v0.6.0   | Formulários TUI interativos             |
-| `github.com/charmbracelet/lipgloss` | v1.0.0 | Estilos e cores no terminal             |
-
----
-
-## Arquitetura interna
-
-### Separação de responsabilidades
-
-| Pacote                        | Responsabilidade                                              |
-|-------------------------------|---------------------------------------------------------------|
-| `cmd`                         | Interface CLI: parsing de flags, validação, orquestração      |
-| `internal/config`             | Tipos de dados puros, sem lógica de I/O                       |
-| `internal/tui`                | Interface de usuário interativa (sem lógica de geração)       |
-| `internal/generator`          | Toda a lógica de geração de arquivos                          |
-| `internal/generator/ide`      | Configurações específicas de IDE (isoladas por IDE)           |
-| `internal/generator/packages` | Configurações de gerenciadores de pacotes (isoladas por pkg)  |
-
-### Adicionando suporte a uma nova IDE
-
-1. Crie `internal/generator/ide/minhaide.go` com a função `generateMinhaIDE()`
-2. Adicione a constante `IDEMinhaIDE` em `internal/config/config.go`
-3. Adicione a opção no formulário TUI em `internal/tui/form.go`
-4. Adicione o case em `generator.runIDE()` em `internal/generator/generator.go`
-5. Adicione o parser em `cmd/new.go` em `parseIDE()`
-
-### Adicionando suporte a um novo gerenciador de pacotes
-
-1. Crie `internal/generator/packages/meupkg.go` com `GenerateMeuPkg()`
-2. Adicione a constante `PkgMeuPkg` em `internal/config/config.go`
-3. Adicione o case no formulário TUI e no `generator.runPackages()`
+| Package                             | Version  | Usage                              |
+|-------------------------------------|----------|------------------------------------|
+| `github.com/spf13/cobra`            | v1.8.1   | CLI framework (commands and flags) |
+| `github.com/charmbracelet/huh`      | v0.6.0   | Interactive TUI forms              |
+| `github.com/charmbracelet/lipgloss` | v1.0.0   | Terminal styles and colors         |
 
 ---
 
-## Contribuindo
+## Internal architecture
 
-1. Fork o repositório
-2. Crie uma branch: `git checkout -b feature/minha-feature`
-3. Commit: `git commit -m 'feat: adiciona suporte a XYZ'`
-4. Push: `git push origin feature/minha-feature`
-5. Abra um Pull Request
+### Separation of responsibilities
 
-### Convenção de commits (Conventional Commits)
+| Package                       | Responsibility                                               |
+|-------------------------------|--------------------------------------------------------------|
+| `cmd`                         | CLI interface: flag parsing, validation, orchestration       |
+| `internal/config`             | Pure data types, no I/O logic                                |
+| `internal/tui`                | Interactive user interface (no generation logic)             |
+| `internal/generator`          | All file generation logic                                    |
+| `internal/generator/ide`      | IDE-specific configurations (isolated per IDE)               |
+| `internal/generator/packages` | Package manager configurations (isolated per pkg)            |
 
-- `feat:` — nova funcionalidade
-- `fix:` — correção de bug
-- `docs:` — documentação
-- `refactor:` — refatoração sem mudança de comportamento
-- `test:` — adição ou correção de testes
-- `chore:` — tarefas de manutenção
+### Adding support for a new IDE
+
+1. Create `internal/generator/ide/myide.go` with the `generateMyIDE()` function
+2. Add the `IDEMyIDE` constant in `internal/config/config.go`
+3. Add the option in the TUI form in `internal/tui/form.go`
+4. Add the case in `generator.runIDE()` in `internal/generator/generator.go`
+5. Add the parser in `cmd/new.go` in `parseIDE()`
+
+### Adding support for a new package manager
+
+1. Create `internal/generator/packages/mypkg.go` with `GenerateMyPkg()`
+2. Add the `PkgMyPkg` constant in `internal/config/config.go`
+3. Add the case in the TUI form and in `generator.runPackages()`
 
 ---
 
-## Licença
+## Contributing
 
-MIT © 2025 — Veja [LICENSE](LICENSE) para detalhes.
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/my-feature`
+3. Commit: `git commit -m 'feat: add support for XYZ'`
+4. Push: `git push origin feature/my-feature`
+5. Open a Pull Request
+
+### Commit convention (Conventional Commits)
+
+- `feat:` — new feature
+- `fix:` — bug fix
+- `docs:` — documentation
+- `refactor:` — refactoring without behavior change
+- `test:` — adding or fixing tests
+- `chore:` — maintenance tasks
 
 ---
 
-*Feito com ❤️ e Go.*
+## License
+
+MIT © 2025 — See [LICENSE](LICENSE) for details.
+
+---
+
+*Made with ❤️ and Go.*

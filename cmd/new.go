@@ -1,4 +1,4 @@
-// Package cmd contém todos os comandos CLI do cpp-gen.
+// Package cmd contains all CLI commands for cpp-gen.
 package cmd
 
 import (
@@ -16,31 +16,31 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Definição do comando
+// Command definition
 // ─────────────────────────────────────────────────────────────────────────────
 
-// newCmd é o subcomando principal do cpp-gen. Ele guia o usuário pelo processo
-// de criação de um novo projeto C++ através de um formulário TUI interativo ou,
-// opcionalmente, através de flags para uso em scripts e automações.
+// newCmd is the main subcommand of cpp-gen. It guides the user through the
+// process of creating a new C++ project via an interactive TUI form or,
+// optionally, via flags for use in scripts and automations.
 //
-// Uso:
+// Usage:
 //
-//	cpp-gen new                        # totalmente interativo
-//	cpp-gen new meu-projeto            # nome pré-preenchido, restante interativo
-//	cpp-gen new --no-interactive [flags] # modo não-interativo (scripting)
+//	cpp-gen new                        # fully interactive
+//	cpp-gen new meu-projeto            # name pre-filled, rest interactive
+//	cpp-gen new --no-interactive [flags] # non-interactive mode (scripting)
 var newCmd = &cobra.Command{
 	Use:   "new [nome-do-projeto]",
 	Short: "Cria um novo projeto C++ com CMake e ferramentas configuradas",
 	Long:  renderNewLong(),
 
-	// Aceita 0 ou 1 argumento posicional (nome do projeto).
+	// Accepts 0 or 1 positional argument (project name).
 	Args: cobra.MaximumNArgs(1),
 
-	// RunE é preferível a Run pois permite retornar erros para tratamento
-	// centralizado no main(), evitando chamadas manuais a os.Exit().
+	// RunE is preferred over Run as it allows returning errors for centralized
+	// handling in main(), avoiding manual calls to os.Exit().
 	RunE: runNew,
 
-	// Exemplos exibidos no --help do subcomando.
+	// Examples shown in the subcommand --help.
 	Example: `  # Modo interativo (recomendado)
   cpp-gen new
   cpp-gen new meu-projeto
@@ -58,11 +58,11 @@ var newCmd = &cobra.Command{
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Registro de flags
+// Flag registration
 // ─────────────────────────────────────────────────────────────────────────────
 
 func init() {
-	// ── Flags de controle ─────────────────────────────────────────────────────
+	// ── Control flags ─────────────────────────────────────────────────────────
 
 	newCmd.Flags().StringP(
 		"output", "o", ".",
@@ -74,7 +74,7 @@ func init() {
 		"Desativa o formulário TUI; usa apenas as flags fornecidas",
 	)
 
-	// ── Flags de metadados (modo não-interativo) ───────────────────────────────
+	// ── Metadata flags (non-interactive mode) ─────────────────────────────────
 
 	newCmd.Flags().String(
 		"name", "",
@@ -93,7 +93,7 @@ func init() {
 		"Versão inicial do projeto no formato SemVer (ex: 1.0.0)",
 	)
 
-	// ── Flags de configuração técnica ─────────────────────────────────────────
+	// ── Technical configuration flags ─────────────────────────────────────────
 
 	newCmd.Flags().String(
 		"std", "20",
@@ -116,7 +116,7 @@ func init() {
 		"Layout de pastas: separate | merged | flat | modular | two-root",
 	)
 
-	// ── Flags de funcionalidades opcionais ────────────────────────────────────
+	// ── Optional feature flags ────────────────────────────────────────────────
 
 	newCmd.Flags().Bool(
 		"no-git", false,
@@ -133,17 +133,18 @@ func init() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Handler principal
+// Main handler
 // ─────────────────────────────────────────────────────────────────────────────
 
-// runNew é o handler do comando `new`. Decide entre modo interativo e
-// não-interativo, coleta a configuração, executa o gerador e exibe o resumo.
+// runNew is the handler for the `new` command. It decides between interactive
+// and non-interactive mode, collects the configuration, runs the generator
+// and displays the summary.
 func runNew(cmd *cobra.Command, args []string) error {
 	outputDir, _ := cmd.Flags().GetString("output")
 	noInteractive, _ := cmd.Flags().GetBool("no-interactive")
 
-	// Nome do projeto: pode vir como argumento posicional ou pela flag --name.
-	// O argumento posicional tem precedência sobre a flag.
+	// Project name: can come as a positional argument or via the --name flag.
+	// The positional argument takes precedence over the flag.
 	initialName := ""
 	if len(args) > 0 {
 		initialName = args[0]
@@ -151,7 +152,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 		initialName = flagName
 	}
 
-	// ── Coleta da configuração ────────────────────────────────────────────────
+	// ── Configuration collection ──────────────────────────────────────────────
 
 	var cfg *config.ProjectConfig
 	var err error
@@ -162,10 +163,10 @@ func runNew(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("configuração inválida: %w", err)
 		}
 	} else {
-		// Modo interativo: abre o formulário TUI com o nome pré-preenchido.
+		// Interactive mode: opens the TUI form with the name pre-filled.
 		cfg, err = tui.RunForm(initialName)
 		if err != nil {
-			// Cancelamento pelo usuário não é um erro — apenas encerra silenciosamente.
+			// User cancellation is not an error — just exits silently.
 			if err.Error() == "user aborted" {
 				fmt.Println(tui.MutedStyle.Render("\nOperação cancelada."))
 				return nil
@@ -174,20 +175,20 @@ func runNew(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Aplica o diretório de saída definido via flag --output.
+	// Applies the output directory defined via the --output flag.
 	cfg.OutputDir = outputDir
 
-	// ── Validação final ───────────────────────────────────────────────────────
+	// ── Final validation ──────────────────────────────────────────────────────
 
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return fmt.Errorf("configuração incompleta:\n  • %s", strings.Join(errs, "\n  • "))
 	}
 
-	// ── Exibe resumo antes de gerar ───────────────────────────────────────────
+	// ── Display summary before generating ────────────────────────────────────
 
 	printProjectSummary(cfg)
 
-	// ── Execução do gerador ───────────────────────────────────────────────────
+	// ── Generator execution ───────────────────────────────────────────────────
 
 	gen := generator.New(cfg, isVerbose(cmd))
 
@@ -195,7 +196,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("falha ao gerar o projeto: %w", err)
 	}
 
-	// ── Mensagem de conclusão ─────────────────────────────────────────────────
+	// ── Completion message ────────────────────────────────────────────────────
 
 	printSuccessMessage(cfg)
 
@@ -203,23 +204,23 @@ func runNew(cmd *cobra.Command, args []string) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Modo não-interativo
+// Non-interactive mode
 // ─────────────────────────────────────────────────────────────────────────────
 
-// buildConfigFromFlags constrói uma ProjectConfig exclusivamente a partir das
-// flags da linha de comando, sem abrir nenhum formulário TUI.
+// buildConfigFromFlags builds a ProjectConfig exclusively from command-line
+// flags, without opening any TUI form.
 //
-// Usado quando --no-interactive é passado, ideal para pipelines de CI/CD
-// e scripts de automação.
+// Used when --no-interactive is passed, ideal for CI/CD pipelines
+// and automation scripts.
 func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.ProjectConfig, error) {
 	cfg := config.Default()
 
-	// ── Nome ──────────────────────────────────────────────────────────────────
+	// ── Name ──────────────────────────────────────────────────────────────────
 	if initialName != "" {
 		cfg.Name = initialName
 	}
 
-	// ── Metadados ─────────────────────────────────────────────────────────────
+	// ── Metadata ──────────────────────────────────────────────────────────────
 	if v, _ := cmd.Flags().GetString("description"); v != "" {
 		cfg.Description = v
 	}
@@ -230,7 +231,7 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 		cfg.Version = v
 	}
 
-	// ── Layout de pastas ──────────────────────────────────────────────────────
+	// ── Folder layout ─────────────────────────────────────────────────────────
 	if layoutStr, _ := cmd.Flags().GetString("layout"); layoutStr != "" {
 		l, err := parseLayout(layoutStr)
 		if err != nil {
@@ -239,7 +240,7 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 		cfg.Layout = l
 	}
 
-	// ── Padrão C++ ────────────────────────────────────────────────────────────
+	// ── C++ standard ──────────────────────────────────────────────────────────
 	if stdStr, _ := cmd.Flags().GetString("std"); stdStr != "" {
 		std, err := parseCppStandard(stdStr)
 		if err != nil {
@@ -248,7 +249,7 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 		cfg.Standard = std
 	}
 
-	// ── Tipo de projeto ───────────────────────────────────────────────────────
+	// ── Project type ──────────────────────────────────────────────────────────
 	if typeStr, _ := cmd.Flags().GetString("type"); typeStr != "" {
 		pt, err := parseProjectType(typeStr)
 		if err != nil {
@@ -257,7 +258,7 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 		cfg.ProjectType = pt
 	}
 
-	// ── Gerenciador de pacotes ────────────────────────────────────────────────
+	// ── Package manager ───────────────────────────────────────────────────────
 	if pkgStr, _ := cmd.Flags().GetString("pkg"); pkgStr != "" {
 		pm, err := parsePackageManager(pkgStr)
 		if err != nil {
@@ -275,7 +276,7 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 		cfg.IDE = ide
 	}
 
-	// ── Flags de opt-out ──────────────────────────────────────────────────────
+	// ── Opt-out flags ─────────────────────────────────────────────────────────
 	noGit, _ := cmd.Flags().GetBool("no-git")
 	noClangd, _ := cmd.Flags().GetBool("no-clangd")
 	noClangFmt, _ := cmd.Flags().GetBool("no-clang-format")
@@ -284,7 +285,7 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 	cfg.UseClangd = !noClangd
 	cfg.UseClangFormat = !noClangFmt
 
-	// ── Validação obrigatória em modo não-interativo ───────────────────────────
+	// ── Required validation in non-interactive mode ───────────────────────────
 	if cfg.Name == "" {
 		return nil, errors.New(
 			"nome do projeto é obrigatório; use o argumento posicional ou --name",
@@ -295,11 +296,11 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Parsers de enum (flags → tipos config)
+// Enum parsers (flags → config types)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// parseCppStandard converte uma string (ex: "20") para config.CppStandard.
-// Retorna erro se o valor não for reconhecido.
+// parseCppStandard converts a string (e.g. "20") to config.CppStandard.
+// Returns an error if the value is not recognized.
 func parseCppStandard(s string) (config.CppStandard, error) {
 	switch s {
 	case "17":
@@ -313,7 +314,7 @@ func parseCppStandard(s string) (config.CppStandard, error) {
 	}
 }
 
-// parseProjectType converte uma string (ex: "executable") para config.ProjectType.
+// parseProjectType converts a string (e.g. "executable") to config.ProjectType.
 func parseProjectType(s string) (config.ProjectType, error) {
 	switch strings.ToLower(s) {
 	case "executable":
@@ -329,7 +330,7 @@ func parseProjectType(s string) (config.ProjectType, error) {
 	}
 }
 
-// parsePackageManager converte uma string (ex: "vcpkg") para config.PackageManager.
+// parsePackageManager converts a string (e.g. "vcpkg") to config.PackageManager.
 func parsePackageManager(s string) (config.PackageManager, error) {
 	switch strings.ToLower(s) {
 	case "none", "":
@@ -345,7 +346,7 @@ func parsePackageManager(s string) (config.PackageManager, error) {
 	}
 }
 
-// parseIDE converte uma string (ex: "vscode") para config.IDE.
+// parseIDE converts a string (e.g. "vscode") to config.IDE.
 func parseIDE(s string) (config.IDE, error) {
 	switch strings.ToLower(s) {
 	case "none", "":
@@ -365,8 +366,8 @@ func parseIDE(s string) (config.IDE, error) {
 	}
 }
 
-// parseLayout converte uma string (ex: "merged") para config.FolderLayout.
-// Aceita variações comuns com hífen, underscore e sem separador.
+// parseLayout converts a string (e.g. "merged") to config.FolderLayout.
+// Accepts common variations with hyphens, underscores and no separator.
 func parseLayout(s string) (config.FolderLayout, error) {
 	switch strings.ToLower(s) {
 	case "separate", "sep":
@@ -387,11 +388,11 @@ func parseLayout(s string) (config.FolderLayout, error) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Saída formatada
+// Formatted output
 // ─────────────────────────────────────────────────────────────────────────────
 
-// printProjectSummary exibe um resumo formatado da configuração do projeto
-// antes de iniciar a geração, permitindo ao usuário revisar as escolhas.
+// printProjectSummary displays a formatted summary of the project configuration
+// before generation starts, allowing the user to review their choices.
 func printProjectSummary(cfg *config.ProjectConfig) {
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -426,8 +427,8 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 	fmt.Println(boxStyle.Render(strings.Join(rows, "\n")))
 }
 
-// printSuccessMessage exibe a mensagem final de conclusão com as instruções
-// de primeiros passos (next steps) para o usuário.
+// printSuccessMessage displays the final completion message with next-steps
+// instructions for the user.
 func printSuccessMessage(cfg *config.ProjectConfig) {
 	successStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -454,15 +455,15 @@ func printSuccessMessage(cfg *config.ProjectConfig) {
 	fmt.Println()
 }
 
-// buildNextSteps retorna uma lista de comandos sugeridos para o usuário
-// executar após a geração do projeto.
+// buildNextSteps returns a list of suggested commands for the user
+// to run after project generation.
 func buildNextSteps(cfg *config.ProjectConfig) []string {
 	projectPath := cfg.ProjectPath()
 	steps := []string{
 		fmt.Sprintf("cd %s", projectPath),
 	}
 
-	// Instrução de configure CMake (varia conforme gerenciador de pacotes)
+	// CMake configure instruction (varies by package manager)
 	switch cfg.PackageManager {
 	case config.PkgVCPKG:
 		steps = append(steps,
@@ -487,10 +488,10 @@ func buildNextSteps(cfg *config.ProjectConfig) []string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers de formatação
+// Formatting helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// orDash retorna o valor se não for vazio, ou "—" caso contrário.
+// orDash returns the value if non-empty, or "—" otherwise.
 func orDash(s string) string {
 	if s == "" {
 		return "—"
@@ -498,7 +499,7 @@ func orDash(s string) string {
 	return s
 }
 
-// boolLabel retorna uma string amigável para valores booleanos.
+// boolLabel returns a user-friendly string for boolean values.
 func boolLabel(b bool) string {
 	if b {
 		return "Sim"
@@ -507,13 +508,11 @@ func boolLabel(b bool) string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Texto de ajuda longa
+// Long help text
 // ─────────────────────────────────────────────────────────────────────────────
 
-// printSuccessMessage exibe a mensagem final de conclusão com as instruções
-// de primeiros passos (next steps) para o usuário.
-// renderNewLong gera o texto de ajuda detalhado do subcomando `new`,
-// exibido com `cpp-gen new --help`.
+// renderNewLong generates the detailed help text for the `new` subcommand,
+// displayed with `cpp-gen new --help`.
 func renderNewLong() string {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -525,7 +524,7 @@ func renderNewLong() string {
 	mutedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#6B7280"))
 
-	_ = os.Stdout // garante o import de "os"
+	_ = os.Stdout // ensures the "os" import is used
 
 	return titleStyle.Render("cpp-gen new") + " — Cria um novo projeto C++ moderno\n\n" +
 		"Por padrão executa em modo " + accentStyle.Render("interativo") +

@@ -1,5 +1,5 @@
-// Package config define todos os tipos, constantes e estruturas de configuração
-// utilizados pelo cpp-gen para descrever um projeto C++ a ser gerado.
+// Package config defines all types, constants and configuration structures
+// used by cpp-gen to describe a C++ project to be generated.
 package config
 
 import "path/filepath"
@@ -8,62 +8,62 @@ import "path/filepath"
 // FolderLayout
 // ─────────────────────────────────────────────────────────────────────────────
 
-// FolderLayout representa o padrão de organização de pastas do projeto C++.
-// Cada layout define onde ficam os headers públicos, arquivos de implementação
-// e como os targets CMake referenciam os diretórios de include.
+// FolderLayout represents the folder organization pattern of the C++ project.
+// Each layout defines where public headers and implementation files are placed
+// and how CMake targets reference the include directories.
 type FolderLayout string
 
 const (
-	// LayoutSeparate é o padrão clássico com separação include/<nome>/ e src/.
-	// Headers públicos ficam em include/<nome>/*.hpp e implementações em src/*.cpp.
-	// É o padrão mais comum em projetos CMake modernos e facilita distinguir
-	// a API pública da implementação privada.
+	// LayoutSeparate is the classic standard with separation of include/<name>/ and src/.
+	// Public headers are in include/<name>/*.hpp and implementations in src/*.cpp.
+	// It is the most common pattern in modern CMake projects and makes it easy to
+	// distinguish the public API from the private implementation.
 	//
-	//  include/<nome>/  ← headers públicos (API)
-	//  src/             ← implementações (.cpp) e headers privados
-	//  tests/           ← testes
+	//  include/<name>/  ← public headers (API)
+	//  src/             ← implementations (.cpp) and private headers
+	//  tests/           ← tests
 	LayoutSeparate FolderLayout = "separate"
 
-	// LayoutMerged é o padrão Pitchfork (P1204R0 / vector-of-bool).
-	// Headers e implementações ficam juntos no diretório <nome>/, eliminando
-	// a navegação entre include/ e src/. Unit tests ficam como arquivos irmãos.
-	// Include canônico: #include <<nome>/file.hpp>
+	// LayoutMerged is the Pitchfork pattern (P1204R0 / vector-of-bool).
+	// Headers and implementations are together in the <name>/ directory, eliminating
+	// navigation between include/ and src/. Unit tests live as sibling files.
+	// Canonical include: #include <<name>/file.hpp>
 	//
-	//  <nome>/          ← headers (.hpp) e fontes (.cpp) juntos
-	//  <nome>/*.test.cpp ← unit tests como arquivos irmãos (opcional)
-	//  tests/           ← testes de integração/funcionais
+	//  <name>/          ← headers (.hpp) and sources (.cpp) together
+	//  <name>/*.test.cpp ← unit tests as sibling files (optional)
+	//  tests/           ← integration/functional tests
 	LayoutMerged FolderLayout = "merged"
 
-	// LayoutFlat coloca tudo dentro de src/ sem separação entre headers e fontes.
-	// É o padrão mais simples, indicado para executáveis e projetos pequenos onde
-	// a distinção entre API pública e privada não é relevante.
+	// LayoutFlat places everything inside src/ without separation between headers and sources.
+	// It is the simplest pattern, suited for executables and small projects where
+	// the distinction between public and private API is not relevant.
 	//
-	//  src/             ← headers (.hpp) e fontes (.cpp) no mesmo lugar
-	//  tests/           ← testes
+	//  src/             ← headers (.hpp) and sources (.cpp) in the same place
+	//  tests/           ← tests
 	LayoutFlat FolderLayout = "flat"
 
-	// LayoutModular segue o padrão Pitchfork para projetos multi-módulo usando libs/.
-	// Cada módulo/biblioteca vive em libs/<nome>/{include,src}. Executáveis ficam
-	// em apps/. Facilita a extração de módulos em projetos separados futuramente.
+	// LayoutModular follows the Pitchfork pattern for multi-module projects using libs/.
+	// Each module/library lives in libs/<name>/{include,src}. Executables are placed
+	// in apps/. Makes it easy to extract modules into separate projects in the future.
 	//
-	//  libs/<nome>/include/<nome>/  ← headers públicos
-	//  libs/<nome>/src/             ← implementações
-	//  apps/                        ← executáveis (se aplicável)
-	//  tests/                       ← testes
+	//  libs/<name>/include/<name>/  ← public headers
+	//  libs/<name>/src/             ← implementations
+	//  apps/                        ← executables (if applicable)
+	//  tests/                       ← tests
 	LayoutModular FolderLayout = "modular"
 
-	// LayoutTwoRoot é um split simples include/ + src/ sem subdiretório de namespace.
-	// Difere do Separate por não criar include/<nome>/: headers ficam diretamente
-	// em include/*.hpp. Comum em projetos menores que não precisam do prefixo de
-	// namespace no #include.
+	// LayoutTwoRoot is a simple include/ + src/ split without a namespace subdirectory.
+	// Unlike Separate, it does not create include/<name>/: headers are placed directly
+	// in include/*.hpp. Common in smaller projects that do not need the namespace
+	// prefix in #include.
 	//
-	//  include/   ← headers públicos (sem subdir de namespace)
-	//  src/       ← implementações
-	//  tests/     ← testes
+	//  include/   ← public headers (no namespace subdir)
+	//  src/       ← implementations
+	//  tests/     ← tests
 	LayoutTwoRoot FolderLayout = "two-root"
 )
 
-// FolderLayoutOptions retorna todos os layouts disponíveis em ordem sugerida.
+// FolderLayoutOptions returns all available layouts in suggested order.
 func FolderLayoutOptions() []FolderLayout {
 	return []FolderLayout{
 		LayoutSeparate,
@@ -74,7 +74,7 @@ func FolderLayoutOptions() []FolderLayout {
 	}
 }
 
-// Label retorna o nome amigável do layout para exibição na UI.
+// Label returns the user-friendly layout name for UI display.
 func (l FolderLayout) Label() string {
 	switch l {
 	case LayoutSeparate:
@@ -92,8 +92,8 @@ func (l FolderLayout) Label() string {
 	}
 }
 
-// Description retorna uma explicação detalhada do layout, exibida como hint
-// abaixo do campo de seleção na TUI.
+// Description returns a detailed explanation of the layout, displayed as a hint
+// below the selection field in the TUI.
 func (l FolderLayout) Description() string {
 	switch l {
 	case LayoutSeparate:
@@ -111,9 +111,9 @@ func (l FolderLayout) Description() string {
 	}
 }
 
-// TreePreview retorna uma árvore ASCII da estrutura de pastas gerada pelo
-// layout, usando <nome> como placeholder para o nome do projeto.
-// Exibida como description de cada opção no seletor de layout da TUI.
+// TreePreview returns an ASCII tree of the folder structure generated by the
+// layout, using <name> as a placeholder for the project name.
+// Displayed as the description of each option in the TUI layout selector.
 func (l FolderLayout) TreePreview() string {
 	switch l {
 	case LayoutSeparate:
@@ -157,27 +157,27 @@ func (l FolderLayout) TreePreview() string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tipos enumerados
+// Enumerated types
 // ─────────────────────────────────────────────────────────────────────────────
 
-// IDE representa a IDE alvo para geração de configurações específicas
+// IDE represents the target IDE for generating specific configurations
 // (tasks, launch, settings, etc.).
 type IDE string
 
 const (
-	IDENone   IDE = "none"   // Sem configuração de IDE
+	IDENone   IDE = "none"   // No IDE configuration
 	IDEVSCode IDE = "vscode" // Visual Studio Code (.vscode/)
 	IDECLion  IDE = "clion"  // CLion / CMakePresets.json
 	IDENvim   IDE = "nvim"   // Neovim (.nvim.lua + clangd)
 	IDEZed    IDE = "zed"    // Zed (.zed/settings.json + .zed/tasks.json)
 )
 
-// IDEOptions retorna todas as IDEs disponíveis como slice, útil para UIs.
+// IDEOptions returns all available IDEs as a slice, useful for UIs.
 func IDEOptions() []IDE {
 	return []IDE{IDENone, IDEVSCode, IDECLion, IDENvim, IDEZed}
 }
 
-// Label retorna o nome amigável da IDE para exibição.
+// Label returns the user-friendly IDE name for display.
 func (i IDE) Label() string {
 	switch i {
 	case IDEVSCode:
@@ -195,21 +195,21 @@ func (i IDE) Label() string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// PackageManager representa o gerenciador de pacotes C++ a ser configurado.
+// PackageManager represents the C++ package manager to be configured.
 type PackageManager string
 
 const (
-	PkgNone         PackageManager = "none"         // Sem gerenciador de pacotes
+	PkgNone         PackageManager = "none"         // No package manager
 	PkgVCPKG        PackageManager = "vcpkg"        // VCPKG (vcpkg.json manifest)
 	PkgFetchContent PackageManager = "fetchcontent" // CMake FetchContent
 )
 
-// PackageManagerOptions retorna todos os gerenciadores disponíveis.
+// PackageManagerOptions returns all available package managers.
 func PackageManagerOptions() []PackageManager {
 	return []PackageManager{PkgNone, PkgVCPKG, PkgFetchContent}
 }
 
-// Label retorna o nome amigável do gerenciador para exibição.
+// Label returns the user-friendly package manager name for display.
 func (p PackageManager) Label() string {
 	switch p {
 	case PkgVCPKG:
@@ -223,21 +223,21 @@ func (p PackageManager) Label() string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ProjectType representa o tipo de artefato que o projeto C++ irá gerar.
+// ProjectType represents the type of artifact the C++ project will generate.
 type ProjectType string
 
 const (
-	TypeExecutable ProjectType = "executable"  // Binário executável
-	TypeStaticLib  ProjectType = "static-lib"  // Biblioteca estática (.a / .lib)
-	TypeHeaderOnly ProjectType = "header-only" // Biblioteca header-only (interface)
+	TypeExecutable ProjectType = "executable"  // Executable binary
+	TypeStaticLib  ProjectType = "static-lib"  // Static library (.a / .lib)
+	TypeHeaderOnly ProjectType = "header-only" // Header-only library (interface)
 )
 
-// ProjectTypeOptions retorna todos os tipos de projeto disponíveis.
+// ProjectTypeOptions returns all available project types.
 func ProjectTypeOptions() []ProjectType {
 	return []ProjectType{TypeExecutable, TypeStaticLib, TypeHeaderOnly}
 }
 
-// Label retorna o nome amigável do tipo de projeto.
+// Label returns the user-friendly project type name.
 func (t ProjectType) Label() string {
 	switch t {
 	case TypeExecutable:
@@ -251,14 +251,14 @@ func (t ProjectType) Label() string {
 	}
 }
 
-// IsLibrary retorna true se o projeto é qualquer tipo de biblioteca.
+// IsLibrary returns true if the project is any kind of library.
 func (t ProjectType) IsLibrary() bool {
 	return t == TypeStaticLib || t == TypeHeaderOnly
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// CppStandard representa a versão do padrão ISO C++ a ser utilizada.
+// CppStandard represents the ISO C++ standard version to be used.
 type CppStandard string
 
 const (
@@ -267,82 +267,82 @@ const (
 	Cpp23 CppStandard = "23" // ISO C++23
 )
 
-// CppStandardOptions retorna todos os padrões C++ suportados.
+// CppStandardOptions returns all supported C++ standards.
 func CppStandardOptions() []CppStandard {
 	return []CppStandard{Cpp17, Cpp20, Cpp23}
 }
 
-// Label retorna o nome amigável do padrão C++ para exibição.
+// Label returns the user-friendly C++ standard name for display.
 func (s CppStandard) Label() string {
 	return "C++" + string(s)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estrutura principal de configuração
+// Main configuration structure
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ProjectConfig contém todas as informações necessárias para gerar
-// um projeto C++ completo. É preenchida via TUI interativa ou flags CLI.
+// ProjectConfig holds all information needed to generate a complete C++ project.
+// It is populated via the interactive TUI or CLI flags.
 type ProjectConfig struct {
-	// ── Metadados do projeto ──────────────────────────────────────────────────
+	// ── Project metadata ──────────────────────────────────────────────────────
 
-	// Name é o nome do projeto (ex: "meu-projeto").
-	// Usado para nomear pastas, targets CMake e variáveis.
+	// Name is the project name (e.g. "my-project").
+	// Used to name directories, CMake targets and variables.
 	Name string
 
-	// Description é uma breve descrição do projeto.
+	// Description is a brief description of the project.
 	Description string
 
-	// Author é o nome do autor ou organização.
+	// Author is the name of the author or organization.
 	Author string
 
-	// Version é a versão inicial do projeto no formato SemVer (ex: "1.0.0").
+	// Version is the initial project version in SemVer format (e.g. "1.0.0").
 	Version string
 
-	// ── Configurações técnicas ────────────────────────────────────────────────
+	// ── Technical settings ────────────────────────────────────────────────────
 
-	// Standard define o padrão C++ a ser utilizado (17, 20, 23).
+	// Standard defines the C++ standard to be used (17, 20, 23).
 	Standard CppStandard
 
-	// ProjectType define o tipo de artefato: executável, biblioteca, etc.
+	// ProjectType defines the artifact type: executable, library, etc.
 	ProjectType ProjectType
 
-	// Layout define o padrão de organização de pastas e arquivos do projeto.
-	// Determina onde ficam headers, implementações e como o CMake os referencia.
+	// Layout defines the folder and file organization pattern of the project.
+	// Determines where headers and implementations are placed and how CMake references them.
 	Layout FolderLayout
 
-	// ── Ferramentas e integrações ─────────────────────────────────────────────
+	// ── Tools and integrations ────────────────────────────────────────────────
 
-	// PackageManager define o sistema de gerenciamento de dependências C++.
+	// PackageManager defines the C++ dependency management system.
 	PackageManager PackageManager
 
-	// IDE define a IDE alvo para geração de configurações específicas.
+	// IDE defines the target IDE for generating specific configurations.
 	IDE IDE
 
-	// ── Flags de funcionalidades opcionais ────────────────────────────────────
+	// ── Optional feature flags ────────────────────────────────────────────────
 
-	// UseGit indica se um repositório Git deve ser inicializado no projeto.
+	// UseGit indicates whether a Git repository should be initialized in the project.
 	UseGit bool
 
-	// UseClangd indica se o arquivo de configuração .clangd deve ser gerado.
+	// UseClangd indicates whether the .clangd configuration file should be generated.
 	UseClangd bool
 
-	// UseClangFormat indica se o arquivo .clang-format deve ser gerado.
+	// UseClangFormat indicates whether the .clang-format file should be generated.
 	UseClangFormat bool
 
-	// ── Configuração de saída ─────────────────────────────────────────────────
+	// ── Output configuration ──────────────────────────────────────────────────
 
-	// OutputDir é o diretório base onde o projeto será criado.
-	// O projeto ficará em OutputDir/Name.
+	// OutputDir is the base directory where the project will be created.
+	// The project will be at OutputDir/Name.
 	OutputDir string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Métodos auxiliares
+// Helper methods
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ProjectPath retorna o caminho completo do diretório raiz do projeto gerado,
-// combinando OutputDir e Name de forma segura para o sistema operacional.
+// ProjectPath returns the full path of the generated project root directory,
+// combining OutputDir and Name in an OS-safe manner.
 func (c *ProjectConfig) ProjectPath() string {
 	if c.OutputDir == "" || c.OutputDir == "." {
 		return c.Name
@@ -350,8 +350,8 @@ func (c *ProjectConfig) ProjectPath() string {
 	return filepath.Join(c.OutputDir, c.Name)
 }
 
-// Validate verifica se a configuração contém os campos obrigatórios preenchidos
-// e retorna uma lista de erros encontrados.
+// Validate checks whether the configuration contains all required fields and
+// returns a list of found errors.
 func (c *ProjectConfig) Validate() []string {
 	var errs []string
 
@@ -371,8 +371,8 @@ func (c *ProjectConfig) Validate() []string {
 	return errs
 }
 
-// Default retorna uma ProjectConfig com valores padrão sensatos,
-// útil como ponto de partida antes de aplicar as escolhas do usuário.
+// Default returns a ProjectConfig with sensible default values,
+// useful as a starting point before applying the user's choices.
 func Default() *ProjectConfig {
 	return &ProjectConfig{
 		Version:        "1.0.0",

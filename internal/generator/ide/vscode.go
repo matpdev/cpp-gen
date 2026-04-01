@@ -1,4 +1,4 @@
-// Package ide contém os geradores de configuração de IDE para projetos C++.
+// Package ide contains the IDE configuration generators for C++ projects.
 package ide
 
 import (
@@ -7,34 +7,34 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generateVSCode — ponto de entrada
+// generateVSCode — entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// generateVSCode cria o diretório .vscode/ com todos os arquivos de configuração
-// necessários para um fluxo de trabalho completo no Visual Studio Code:
+// generateVSCode creates the .vscode/ directory with all configuration files
+// necessary for a complete workflow in Visual Studio Code:
 //
-//   - tasks.json       — tarefas de configure, build, clean e test via CMake
-//   - launch.json      — configurações de debug com CodeLLDB e cppdbg (MS)
-//   - settings.json    — configurações do workspace (clangd, cmake-tools, editor)
-//   - extensions.json  — extensões recomendadas para o projeto
-//   - c_cpp_properties.json — configuração do IntelliSense (fallback sem clangd)
+//   - tasks.json       — configure, build, clean and test tasks via CMake
+//   - launch.json      — debug configurations with CodeLLDB and cppdbg (MS)
+//   - settings.json    — workspace configurations (clangd, cmake-tools, editor)
+//   - extensions.json  — recommended extensions for the project
+//   - c_cpp_properties.json — IntelliSense configuration (fallback without clangd)
 //
-// Todos os arquivos são gerados em .vscode/ na raiz do projeto e devem ser
-// versionados junto com o código para garantir ambiente consistente na equipe.
+// All files are generated in .vscode/ at the project root and should be
+// versioned with the code to ensure a consistent environment for the team.
 func generateVSCode(root string, data *Data, verbose bool) error {
 	vscodeDir := filepath.Join(root, ".vscode")
 
 	files := []struct {
-		name     string // nome do arquivo (para mensagens de erro)
-		relPath  string // caminho relativo ao root
-		tmplName string // nome do template Go
-		tmpl     string // conteúdo do template
+		name     string // file name (for error messages)
+		relPath  string // path relative to root
+		tmplName string // Go template name
+		tmpl     string // template content
 	}{
 		{
-			name:     "tasks.json",
-			relPath:  filepath.Join(vscodeDir, "tasks.json"),
-			tmplName: "vscode_tasks",
-			tmpl:     tmplVSCodeTasks,
+			name:     "tasks.json",                           // file name (for error messages)
+			relPath:  filepath.Join(vscodeDir, "tasks.json"), // path relative to root
+			tmplName: "vscode_tasks",                         // Go template name
+			tmpl:     tmplVSCodeTasks,                        // template content
 		},
 		{
 			name:     "launch.json",
@@ -75,13 +75,13 @@ func generateVSCode(root string, data *Data, verbose bool) error {
 // Template: .vscode/tasks.json
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplVSCodeTasks é o template para .vscode/tasks.json.
+// tmplVSCodeTasks is the template for .vscode/tasks.json.
 //
-// Define tarefas de build integradas ao VSCode, acessíveis via:
+// Defines build tasks integrated with VSCode, accessible via:
 //   - Terminal > Run Task...         (Ctrl+Shift+P → "Run Task")
-//   - Ctrl+Shift+B                   (tarefa de build padrão)
+//   - Ctrl+Shift+B                   (default build task)
 //
-// Tarefas geradas:
+// Generated tasks:
 //
 //	┌─────────────────────────────────────────────────────────────────┐
 //	│ CMake: Configure (Debug)   — cmake --preset debug               │
@@ -90,10 +90,10 @@ func generateVSCode(root string, data *Data, verbose bool) error {
 //	│ CMake: Build (Release)     — cmake --build --preset build-release│
 //	│ CMake: Clean               — cmake --build --target clean       │
 //	│ CMake: Run Tests           — ctest --preset test-debug          │
-//	│ CMake: Rebuild             — clean + build em sequência         │
+//	│ CMake: Rebuild             — clean + build in sequence          │
 //	└─────────────────────────────────────────────────────────────────┘
 //
-// Referência: https://code.visualstudio.com/docs/editor/tasks
+// Reference: https://code.visualstudio.com/docs/editor/tasks
 const tmplVSCodeTasks = `{
     // ==========================================================================
     // .vscode/tasks.json — Tarefas de build para {{ .ProjectName }}

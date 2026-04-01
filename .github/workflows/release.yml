@@ -1,0 +1,85 @@
+# ==============================================================================
+# .github/workflows/release.yml — cpp-gen
+# ==============================================================================
+# Release pipeline. Triggered automatically when a tag in the format
+# vX.Y.Z is pushed to the repository (e.g.: via `make release` or scripts/release.sh).
+#
+# Full flow:
+#   git commit → scripts/release.sh → tag vX.Y.Z → this workflow → goreleaser
+#                                                                       ↓
+#                                              binários + archives + GitHub Release
+# ==============================================================================
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+" # v1.2.3
+      - "v[0-9]+.[0-9]+.[0-9]+-*" # v1.2.3-beta.1  (pre-release)
+
+# Minimum permissions required for goreleaser to create the release
+permissions:
+  contents: write # create releases and upload assets
+  packages: write # publish packages (if needed in the future)
+
+jobs:
+  # ── Goreleaser ───────────────────────────────────────────────────────────────
+  goreleaser:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (com histórico completo)
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth 0 is required for goreleaser to generate the changelog
+          # correctly from the full commit and tag history.
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: |
+          go mod verify
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      # Runs tests before publishing — failure here aborts the release
+      - name: Test
+        run: go test -race ./...
+
+      - name: Run goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          # GitHub token to create the release and upload assets.
+          # GITHUB_TOKEN is automatically injected by Actions — no extra configuration needed.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Completion notification ───────────────────────────────────────────────────
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    if: always()
+
+    steps:
+      - name: Release succeeded
+        if: needs.goreleaser.result == 'success'
+        run: |
+          echo "::notice title=Release publicada::cpp-gen ${{ github.ref_name }} foi publicada com sucesso!"
+          echo "URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+
+      - name: Release failed
+        if: needs.goreleaser.result == 'failure'
+        run: |
+          echo "::error title=Falha na release::O goreleaser falhou para a tag ${{ github.ref_name }}."
+          exit 1

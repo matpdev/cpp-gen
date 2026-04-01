@@ -1,12 +1,12 @@
-// Package cmd contém todos os comandos CLI do cpp-gen.
+// Package cmd contains all CLI commands for cpp-gen.
 //
-// Os comandos são construídos com a biblioteca Cobra e seguem a estrutura:
+// Commands are built with the Cobra library and follow the structure:
 //
-//	cpp-gen <comando> [flags]
+//	cpp-gen <command> [flags]
 //
-// Comandos disponíveis:
-//   - new   : Cria um novo projeto C++ (interativo ou via flags)
-//   - version: Exibe a versão atual do cpp-gen
+// Available commands:
+//   - new    : Creates a new C++ project (interactive or via flags)
+//   - version: Displays the current version of cpp-gen
 package cmd
 
 import (
@@ -18,54 +18,69 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Metadados da aplicação
+// Application metadata
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	// AppName é o nome canônico do binário CLI.
+	// AppName is the canonical name of the CLI binary.
 	AppName = "cpp-gen"
 
-	// AppVersion é a versão atual do cpp-gen no formato SemVer.
-	AppVersion = "1.0.0"
-
-	// AppDescription é a descrição curta exibida no help raiz.
+	// AppDescription is the short description shown in root help.
 	AppDescription = "Gerador moderno de projetos C++ com CMake, VCPKG, FetchContent e suporte a IDEs."
 )
 
+// Variables injected at compile time via ldflags by goreleaser and the Makefile.
+// Must be `var` (never `const`) for the injection to work.
+//
+//	-X cpp-gen/cmd.AppVersion=1.2.3
+//	-X cpp-gen/cmd.BuildDate=2024-01-01T00:00:00Z
+//	-X cpp-gen/cmd.GitCommit=abc1234
+var (
+	// AppVersion is the current version in SemVer format. Default value "dev"
+	// indicates a local build without ldflags injection.
+	AppVersion = "dev"
+
+	// BuildDate is the UTC build timestamp in RFC 3339 format.
+	BuildDate = "unknown"
+
+	// GitCommit is the short hash of the HEAD commit at build time.
+	GitCommit = "unknown"
+)
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Comando raiz
+// Root command
 // ─────────────────────────────────────────────────────────────────────────────
 
-// rootCmd é o comando base do CLI. Todos os subcomandos são registrados nele.
-// Executá-lo sem subcomando exibe o banner e o help padrão do Cobra.
+// rootCmd is the base CLI command. All subcommands are registered on it.
+// Running it without a subcommand displays the banner and Cobra's default help.
 var rootCmd = &cobra.Command{
 	Use:   AppName,
 	Short: AppDescription,
 	Long:  renderBanner(),
 
-	// SilenceUsage evita que o Cobra imprima a mensagem de uso completa em
-	// erros de runtime (apenas erros de parsing de flags mostram o uso).
+	// SilenceUsage prevents Cobra from printing the full usage message on
+	// runtime errors (only flag parsing errors show the usage).
 	SilenceUsage: true,
 
-	// SilenceErrors delega o tratamento de erros para o main(), que os formata
-	// com o estilo de erro do cpp-gen antes de exibir ao usuário.
+	// SilenceErrors delegates error handling to main(), which formats them
+	// with cpp-gen's error style before displaying to the user.
 	SilenceErrors: true,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inicialização
+// Initialization
 // ─────────────────────────────────────────────────────────────────────────────
 
-// init registra os subcomandos e as flags persistentes do rootCmd.
-// É chamado automaticamente pelo Go antes de main().
+// init registers subcommands and persistent flags on rootCmd.
+// It is called automatically by Go before main().
 func init() {
-	// Flags persistentes (disponíveis em todos os subcomandos)
+	// Persistent flags (available in all subcommands)
 	rootCmd.PersistentFlags().BoolP(
 		"verbose", "v", false,
 		"Ativa saída detalhada durante a geração do projeto",
 	)
 
-	// Subcomandos registrados
+	// Registered subcommands
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(versionCmd)
 }
@@ -74,18 +89,18 @@ func init() {
 // Execute
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Execute é o ponto de entrada público do pacote cmd.
-// Deve ser chamado pelo main() para iniciar o processamento do CLI.
-// Retorna qualquer erro encontrado durante a execução do comando.
+// Execute is the public entry point of the cmd package.
+// It must be called by main() to start CLI processing.
+// Returns any error encountered during command execution.
 func Execute() error {
 	return rootCmd.Execute()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Subcomando: version
+// Subcommand: version
 // ─────────────────────────────────────────────────────────────────────────────
 
-// versionCmd exibe a versão atual do cpp-gen.
+// versionCmd displays the current version of cpp-gen.
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Exibe a versão atual do cpp-gen",
@@ -94,10 +109,19 @@ var versionCmd = &cobra.Command{
 			Bold(true).
 			Foreground(lipgloss.Color("#7C3AED"))
 
+		labelStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#A78BFA"))
+
 		mutedStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#6B7280"))
 
-		fmt.Printf("%s %s\n", verStyle.Render(AppName), mutedStyle.Render("v"+AppVersion))
+		fmt.Printf("%s %s\n\n",
+			verStyle.Render(AppName),
+			mutedStyle.Render("v"+AppVersion),
+		)
+		fmt.Printf("  %s  %s\n", labelStyle.Render("commit  "), mutedStyle.Render(GitCommit))
+		fmt.Printf("  %s  %s\n", labelStyle.Render("built   "), mutedStyle.Render(BuildDate))
+		fmt.Println()
 	},
 }
 
@@ -105,16 +129,16 @@ var versionCmd = &cobra.Command{
 // Banner
 // ─────────────────────────────────────────────────────────────────────────────
 
-// renderBanner gera o texto de apresentação completo do CLI, exibido quando
-// o usuário executa `cpp-gen` sem subcomandos ou com `--help`.
+// renderBanner generates the full presentation text of the CLI, displayed when
+// the user runs `cpp-gen` without subcommands or with `--help`.
 //
-// O banner inclui:
-//   - Título estilizado com a cor primária
-//   - Versão atual
-//   - Descrição resumida da ferramenta
-//   - Lista de capacidades principais
+// The banner includes:
+//   - Stylized title with primary color
+//   - Current version
+//   - Brief tool description
+//   - List of main capabilities
 func renderBanner() string {
-	// ── Estilos ───────────────────────────────────────────────────────────────
+	// ── Styles ────────────────────────────────────────────────────────────────
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#7C3AED"))
@@ -131,7 +155,7 @@ func renderBanner() string {
 	mutedStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#6B7280"))
 
-	// ── Composição do banner ──────────────────────────────────────────────────
+	// ── Banner composition ────────────────────────────────────────────────────
 	title := titleStyle.Render("⚡ cpp-gen") +
 		"  " +
 		versionStyle.Render("v"+AppVersion)
@@ -164,11 +188,11 @@ func renderBanner() string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Utilitários internos
+// Internal utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-// isVerbose retorna true se a flag --verbose foi passada no comando raiz.
-// Deve ser chamada dentro de subcomandos para condicionar saída detalhada.
+// isVerbose returns true if the --verbose flag was passed on the root command.
+// Should be called inside subcommands to conditionally produce verbose output.
 func isVerbose(cmd *cobra.Command) bool {
 	v, err := cmd.Root().PersistentFlags().GetBool("verbose")
 	if err != nil {
@@ -177,8 +201,8 @@ func isVerbose(cmd *cobra.Command) bool {
 	return v
 }
 
-// printError imprime uma mensagem de erro formatada no stderr e encerra o processo.
-// Usado pelo main() mas disponível para subcomandos que precisam abortar com estilo.
+// printError prints a formatted error message to stderr and terminates the process.
+// Used by main() but available to subcommands that need to abort with style.
 func printError(err error) {
 	errStyle := lipgloss.NewStyle().
 		Bold(true).

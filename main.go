@@ -1,8 +1,8 @@
-// Ponto de entrada principal do cpp-gen.
+// Main entry point for cpp-gen.
 //
-// cpp-gen é uma ferramenta CLI escrita em Go para geração de projetos C++
-// modernos com CMake, gerenciadores de pacotes, configurações de IDE e
-// ferramentas de desenvolvimento como Clangd e Clang-Format.
+// cpp-gen is a CLI tool written in Go for generating modern C++ projects
+// with CMake, package managers, IDE configurations and
+// development tools such as Clangd and Clang-Format.
 package main
 
 import (

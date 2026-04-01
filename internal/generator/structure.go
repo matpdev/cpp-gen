@@ -1,4 +1,4 @@
-// Package generator contém toda a lógica de geração de projetos C++ do cpp-gen.
+// Package generator contains all C++ project generation logic for cpp-gen.
 package generator
 
 import (
@@ -10,36 +10,35 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generateStructure — ponto de entrada
+// generateStructure — entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// generateStructure cria a hierarquia de diretórios do projeto e os arquivos
-// fonte C++ iniciais de acordo com o tipo de projeto e o layout de pastas
-// configurados.
+// generateStructure creates the project directory hierarchy and initial C++
+// source files according to the configured project type and folder layout.
 //
-// O layout.Spec (calculado em layout.Resolve) determina:
-//   - Quais diretórios criar
-//   - Onde cada arquivo C++ gerado é colocado
-//   - O prefixo usado nas diretivas #include dos arquivos gerados
+// The layout.Spec (calculated in layout.Resolve) determines:
+//   - Which directories to create
+//   - Where each generated C++ file is placed
+//   - The prefix used in #include directives of generated files
 //
-// Estrutura exemplificada para layout "separate" + tipo "static-lib":
+// Example structure for layout "separate" + type "static-lib":
 //
 //	<nome>/
-//	├── include/<nome>/  ← headers públicos
+//	├── include/<nome>/  ← public headers
 //	│   └── <nome>.hpp
-//	├── src/             ← implementações
+//	├── src/             ← implementations
 //	│   └── <nome>.cpp
 //	├── tests/
 //	│   └── test_main.cpp
 //	├── cmake/
 //	└── docs/
 func generateStructure(root string, data *TemplateData, spec *layout.Spec, verbose bool) error {
-	// ── 1. Criar diretórios ───────────────────────────────────────────────────
+	// ── 1. Create directories ─────────────────────────────────────────────────
 	if err := createDirectories(root, spec); err != nil {
 		return fmt.Errorf("criar diretórios: %w", err)
 	}
 
-	// ── 2. Gerar arquivos fonte C++ ───────────────────────────────────────────
+	// ── 2. Generate C++ source files ──────────────────────────────────────────
 	if err := generateSourceFiles(root, data, spec, verbose); err != nil {
 		return fmt.Errorf("gerar arquivos fonte: %w", err)
 	}
@@ -48,11 +47,11 @@ func generateStructure(root string, data *TemplateData, spec *layout.Spec, verbo
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Criação de diretórios
+// Directory creation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// createDirectories cria todos os diretórios definidos na spec do layout.
-// Os diretórios são criados com os pais necessários (equivalente a mkdir -p).
+// createDirectories creates all directories defined in the layout spec.
+// Directories are created with all necessary parents (equivalent to mkdir -p).
 func createDirectories(root string, spec *layout.Spec) error {
 	for _, d := range spec.Dirs {
 		path := filepath.Join(root, d)
@@ -64,15 +63,15 @@ func createDirectories(root string, spec *layout.Spec) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Geração de arquivos fonte
+// Source file generation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// generateSourceFiles despacha para o gerador de arquivos correto com base
-// no tipo de projeto (executável, biblioteca estática ou header-only).
+// generateSourceFiles dispatches to the correct file generator based on
+// the project type (executable, static library or header-only).
 //
-// Os caminhos de destino são lidos diretamente do layout.Spec, portanto
-// esta função não precisa saber qual layout está ativo — apenas qual tipo
-// de artefato gerar.
+// Destination paths are read directly from the layout.Spec, so
+// this function does not need to know which layout is active — only which
+// type of artifact to generate.
 func generateSourceFiles(root string, data *TemplateData, spec *layout.Spec, verbose bool) error {
 	switch {
 	case data.IsExecutable:
@@ -86,17 +85,17 @@ func generateSourceFiles(root string, data *TemplateData, spec *layout.Spec, ver
 	}
 }
 
-// ── Executável ────────────────────────────────────────────────────────────────
+// ── Executable ───────────────────────────────────────────────────────────────
 
-// generateExecutableFiles gera os arquivos iniciais para projetos executáveis.
+// generateExecutableFiles generates the initial files for executable projects.
 //
-// Arquivos gerados (caminhos conforme o layout.Spec):
-//   - <spec.MainCPP>   — ponto de entrada (main.cpp ou apps/main.cpp etc.)
-//   - <spec.TestCPP>   — esqueleto de testes
+// Generated files (paths per layout.Spec):
+//   - <spec.MainCPP>   — entry point (main.cpp or apps/main.cpp etc.)
+//   - <spec.TestCPP>   — test skeleton
 //
-// Para o layout Modular, além do apps/main.cpp, são gerados os arquivos da
-// biblioteca reutilizável em libs/<nome>/ (LibCPP e PublicHPP), pois o
-// executável é apenas um front-end fino que linka à lib.
+// For the Modular layout, in addition to apps/main.cpp, the reusable library
+// files in libs/<name>/ (LibCPP and PublicHPP) are also generated, since the
+// executable is just a thin front-end that links to the lib.
 func generateExecutableFiles(root string, data *TemplateData, spec *layout.Spec, verbose bool) error {
 	files := []struct {
 		path     string
@@ -115,9 +114,9 @@ func generateExecutableFiles(root string, data *TemplateData, spec *layout.Spec,
 		},
 	}
 
-	// No layout modular, o executável em apps/ é apenas um front-end fino.
-	// A lógica reutilizável fica em libs/<nome>/, portanto também geramos
-	// os arquivos da biblioteca (implementação + header público).
+	// In the modular layout, the executable in apps/ is just a thin front-end.
+	// The reusable logic lives in libs/<name>/, so we also generate
+	// the library files (implementation + public header).
 	if spec.Kind == layout.KindModular {
 		files = append(files,
 			struct {
@@ -150,14 +149,14 @@ func generateExecutableFiles(root string, data *TemplateData, spec *layout.Spec,
 	return nil
 }
 
-// ── Biblioteca estática ───────────────────────────────────────────────────────
+// ── Static library ────────────────────────────────────────────────────────────
 
-// generateStaticLibFiles gera os arquivos iniciais para bibliotecas estáticas.
+// generateStaticLibFiles generates the initial files for static libraries.
 //
-// Arquivos gerados (caminhos conforme o layout.Spec):
-//   - <spec.LibCPP>    — implementação da biblioteca
-//   - <spec.PublicHPP> — header público da API
-//   - <spec.TestCPP>   — esqueleto de testes
+// Generated files (paths per layout.Spec):
+//   - <spec.LibCPP>    — library implementation
+//   - <spec.PublicHPP> — public API header
+//   - <spec.TestCPP>   — test skeleton
 func generateStaticLibFiles(root string, data *TemplateData, spec *layout.Spec, verbose bool) error {
 	files := []struct {
 		path     string
@@ -192,11 +191,11 @@ func generateStaticLibFiles(root string, data *TemplateData, spec *layout.Spec, 
 
 // ── Header-only ───────────────────────────────────────────────────────────────
 
-// generateHeaderOnlyFiles gera os arquivos iniciais para bibliotecas header-only.
+// generateHeaderOnlyFiles generates the initial files for header-only libraries.
 //
-// Arquivos gerados (caminhos conforme o layout.Spec):
-//   - <spec.PublicHPP> — implementação completa no header
-//   - <spec.TestCPP>   — esqueleto de testes
+// Generated files (paths per layout.Spec):
+//   - <spec.PublicHPP> — complete implementation in the header
+//   - <spec.TestCPP>   — test skeleton
 func generateHeaderOnlyFiles(root string, data *TemplateData, spec *layout.Spec, verbose bool) error {
 	files := []struct {
 		path     string
@@ -225,12 +224,12 @@ func generateHeaderOnlyFiles(root string, data *TemplateData, spec *layout.Spec,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Templates C++ — os dados injetados vêm de TemplateData
+// C++ templates — injected data comes from TemplateData
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplExecutableMain é o template para o ponto de entrada de projetos executáveis.
-// O campo {{.LayoutIncludePrefix}} garante que o #include use o caminho correto
-// independentemente do layout escolhido.
+// tmplExecutableMain is the template for the entry point of executable projects.
+// The {{.LayoutIncludePrefix}} field ensures that #include uses the correct path
+// regardless of the chosen layout.
 const tmplExecutableMain = `/**
  * @file main.cpp
  * @brief Ponto de entrada do projeto {{.Name}}.
@@ -263,9 +262,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 }
 `
 
-// tmplLibraryCpp é o template para o arquivo de implementação de bibliotecas
-// estáticas. O #include usa {{.LayoutIncludePrefix}} para ser correto em
-// qualquer layout (ex: "mylib/mylib.hpp" no separate, "mylib.hpp" no flat).
+// tmplLibraryCpp is the template for the implementation file of static libraries.
+// The #include uses {{.LayoutIncludePrefix}} to be correct in any layout
+// (e.g. "mylib/mylib.hpp" in separate, "mylib.hpp" in flat).
 const tmplLibraryCpp = `/**
  * @file {{.NameSnake}}.cpp
  * @brief Implementação da biblioteca {{.Name}}.
@@ -301,9 +300,9 @@ std::string {{.NamePascal}}::greet(std::string_view name) const {
 } // namespace {{.NameSnake}}
 `
 
-// tmplLibraryHpp é o template para o header público de bibliotecas estáticas.
-// Usa #pragma once como include guard moderno e define o namespace baseado
-// no nome do projeto em snake_case.
+// tmplLibraryHpp is the template for the public header of static libraries.
+// Uses #pragma once as a modern include guard and defines the namespace based
+// on the project name in snake_case.
 const tmplLibraryHpp = `/**
  * @file {{.NameSnake}}.hpp
  * @brief API pública da biblioteca {{.Name}}.
@@ -362,10 +361,10 @@ public:
 } // namespace {{.NameSnake}}
 `
 
-// tmplHeaderOnly é o template para bibliotecas header-only.
-// Toda a implementação fica inline no arquivo .hpp.
-// O path de include no Doxygen usa {{.LayoutIncludePrefix}} para ser
-// correto independentemente do layout.
+// tmplHeaderOnly is the template for header-only libraries.
+// The entire implementation is inline in the .hpp file.
+// The Doxygen include path uses {{.LayoutIncludePrefix}} to be
+// correct regardless of the layout.
 const tmplHeaderOnly = `/**
  * @file {{.NameSnake}}.hpp
  * @brief Biblioteca header-only {{.Name}}.
@@ -431,10 +430,10 @@ public:
 } // namespace {{.NameSnake}}
 `
 
-// tmplTestMain é o template para o arquivo de testes.
-// Usa a macro CHECK() como framework mínimo compatível com CTest,
-// sem requerer dependências externas.
-// O #include usa {{.LayoutIncludePrefix}} para ser correto em qualquer layout.
+// tmplTestMain is the template for the test file.
+// Uses the CHECK() macro as a minimal framework compatible with CTest,
+// without requiring external dependencies.
+// The #include uses {{.LayoutIncludePrefix}} to be correct in any layout.
 const tmplTestMain = `/**
  * @file test_main.cpp
  * @brief Testes de {{.Name}}.
@@ -537,8 +536,8 @@ int main() {
 }
 `
 
-// mkdirAll é um wrapper sobre os.MkdirAll para uso nos testes do pacote.
-// O gerador principal usa os.MkdirAll diretamente via createDirectories.
+// mkdirAll is a wrapper around os.MkdirAll for use in package tests.
+// The main generator uses os.MkdirAll directly via createDirectories.
 func mkdirAll(path string) error {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return fmt.Errorf("criar diretório %q: %w", path, err)

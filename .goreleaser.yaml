@@ -1,0 +1,144 @@
+# ==============================================================================
+# .goreleaser.yaml — cpp-gen
+# ==============================================================================
+# Documentation: https://goreleaser.com/customization/
+#
+# Trigger:
+#   goreleaser release --clean          → full release (CI)
+#   goreleaser release --snapshot --clean → local build without publishing
+# ==============================================================================
+
+version: 2
+
+# ── Project metadata ─────────────────────────────────────────────────────────
+
+project_name: cpp-gen
+
+# ── Pre-build hooks ───────────────────────────────────────────────────────────
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+# ── Global environment variables ─────────────────────────────────────────────
+
+env:
+  - CGO_ENABLED=0
+
+# ── Builds ────────────────────────────────────────────────────────────────────
+
+builds:
+  - id: cpp-gen
+    main: .
+    binary: cpp-gen
+
+    goos:
+      - linux
+      - darwin
+
+    goarch:
+      - amd64
+      - arm64
+
+    # Compilation flags
+    flags:
+      - -trimpath
+
+    # Injects version, date and commit into the binary — same variables as the Makefile.
+    # NOTE: AppVersion, BuildDate and GitCommit must be declared as
+    # `var` (not `const`) in cmd/root.go for the injection to work.
+    ldflags:
+      - -s -w
+      - -X cpp-gen/cmd.AppVersion={{.Version}}
+      - -X cpp-gen/cmd.BuildDate={{.Date}}
+      - -X cpp-gen/cmd.GitCommit={{.ShortCommit}}
+
+# ── Archives ──────────────────────────────────────────────────────────────────
+
+archives:
+  - id: default
+    format: tar.gz
+    # cpp-gen_1.2.3_linux_amd64.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+# ── Checksums ─────────────────────────────────────────────────────────────────
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# ── Changelog ─────────────────────────────────────────────────────────────────
+# Generated from commit messages following the Conventional Commits convention.
+
+changelog:
+  use: git
+  sort: asc
+
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^style:"
+      - "Merge pull request"
+      - "Merge branch"
+
+  groups:
+    - title: "💥 Breaking Changes"
+      regexp: '^.*!(\(.+\))?:.*'
+      order: 0
+    - title: "⚡ Novas Funcionalidades"
+      regexp: "^feat"
+      order: 1
+    - title: "🐛 Correções"
+      regexp: "^fix"
+      order: 2
+    - title: "🚀 Performance"
+      regexp: "^perf"
+      order: 3
+    - title: "♻️  Refatorações"
+      regexp: "^refactor"
+      order: 4
+    - title: "🔧 Outros"
+      order: 999
+
+# ── GitHub Release ────────────────────────────────────────────────────────────
+
+release:
+  # Automatically detects pre-release by semver suffixes (e.g.: v1.0.0-beta.1)
+  prerelease: auto
+
+  # false = publishes immediately; true = saves as draft
+  draft: false
+
+  name_template: "v{{.Version}}"
+
+  header: |
+    ## cpp-gen v{{.Version}}
+
+    Gerador moderno de projetos C++ com CMake, VCPKG, FetchContent e suporte a múltiplas IDEs.
+
+  footer: |
+    ---
+
+    ### Instalação
+
+    **Arch Linux (AUR)**
+    ```sh
+    yay -S cpp-gen
+    ```
+
+    **Linux / macOS — manual**
+    ```sh
+    # Exemplo para Linux x86_64
+    curl -LO https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/cpp-gen/releases/download/v{{.Version}}/cpp-gen_{{.Version}}_linux_amd64.tar.gz
+    tar -xzf cpp-gen_{{.Version}}_linux_amd64.tar.gz
+    install -m755 cpp-gen ~/.local/bin/
+    ```
+
+    > **Verifique o checksum:** `sha256sum -c checksums.txt`

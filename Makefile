@@ -1,37 +1,40 @@
 # ==============================================================================
 # Makefile — cpp-gen
 # ==============================================================================
-# Targets disponíveis:
-#   make              → build (padrão)
-#   make build        → compila o binário
-#   make install      → instala em ~/.local/bin (sem sudo)
-#   make install-global → instala em /usr/local/bin (requer sudo)
-#   make uninstall    → remove o binário instalado
-#   make clean        → remove artefatos de build locais
-#   make help         → exibe esta mensagem
+# Available targets:
+#   make              → build (default)
+#   make build        → compiles the binary
+#   make install      → installs to ~/.local/bin (no sudo required)
+#   make install-global → installs to /usr/local/bin (requires sudo)
+#   make uninstall    → removes the installed binary
+#   make clean        → removes local build artifacts
+#   make release      → calculates next version and creates tag via Conventional Commits
+#   make snapshot     → local multi-platform build with goreleaser (without publishing)
+#   make changelog    → generates/updates CHANGELOG.md via git-cliff
+#   make help         → displays this message
 # ==============================================================================
 
-# ── Metadados ─────────────────────────────────────────────────────────────────
+# ── Metadata ──────────────────────────────────────────────────────────────────
 
 BINARY     := cpp-gen
 VERSION    := $(shell grep 'AppVersion' cmd/root.go 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.1.0")
 BUILD_DATE := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-# ── Diretórios ────────────────────────────────────────────────────────────────
+# ── Directories ───────────────────────────────────────────────────────────────
 
-# Diretório de instalação padrão (sem sudo, já suportado pela maioria dos shells)
+# Default installation directory (no sudo, supported by most shells)
 INSTALL_DIR        := $(HOME)/.local/bin
 
-# Diretório de instalação global (requer sudo)
+# Global installation directory (requires sudo)
 INSTALL_DIR_GLOBAL := /usr/local/bin
 
-# Diretório de saída do build local
+# Local build output directory
 BUILD_DIR  := ./dist
 
-# ── Flags de compilação Go ────────────────────────────────────────────────────
+# ── Go compilation flags ──────────────────────────────────────────────────────
 
-# Injeta versão, commit e data no binário via ldflags para exibição no --version
+# Injects version, commit and date into the binary via ldflags for --version display
 LDFLAGS := -s -w \
 	-X 'cpp-gen/cmd.AppVersion=$(VERSION)' \
 	-X 'cpp-gen/cmd.BuildDate=$(BUILD_DATE)' \
@@ -40,7 +43,7 @@ LDFLAGS := -s -w \
 GO      := go
 GOFLAGS := -trimpath
 
-# ── Cores para output ─────────────────────────────────────────────────────────
+# ── Output colors ─────────────────────────────────────────────────────────────
 
 RESET   := \033[0m
 BOLD    := \033[1m
@@ -57,10 +60,10 @@ GRAY    := \033[90m
 
 .DEFAULT_GOAL := build
 
-.PHONY: build install install-global uninstall clean help
+.PHONY: build install install-global uninstall clean release snapshot changelog help
 
 # ── build ─────────────────────────────────────────────────────────────────────
-## Compila o binário em ./dist/cpp-gen
+## Compiles the binary to ./dist/cpp-gen
 build:
 	@printf "$(BOLD)$(CYAN)  Building$(RESET)  $(BINARY) v$(VERSION) ($(GIT_COMMIT))\n"
 	@mkdir -p $(BUILD_DIR)
@@ -68,7 +71,7 @@ build:
 	@printf "$(BOLD)$(GREEN)  ✓ Built$(RESET)    $(BUILD_DIR)/$(BINARY)\n"
 
 # ── install ───────────────────────────────────────────────────────────────────
-## Instala o binário em ~/.local/bin (sem necessidade de sudo)
+## Installs the binary to ~/.local/bin (no sudo required)
 install: build
 	@mkdir -p $(INSTALL_DIR)
 	@ACTION=instalado; \
@@ -90,7 +93,7 @@ install: build
 	$(MAKE) --no-print-directory _post_install_log INSTALL_LOCATION=$(INSTALL_DIR) INSTALL_ACTION=$$ACTION
 
 # ── install-global ────────────────────────────────────────────────────────────
-## Instala o binário em /usr/local/bin (requer sudo)
+## Installs the binary to /usr/local/bin (requires sudo)
 install-global: build
 	@ACTION=instalado; \
 	if [ -f "$(INSTALL_DIR_GLOBAL)/$(BINARY)" ]; then \
@@ -111,7 +114,7 @@ install-global: build
 	$(MAKE) --no-print-directory _post_install_log INSTALL_LOCATION=$(INSTALL_DIR_GLOBAL) INSTALL_ACTION=$$ACTION
 
 # ── uninstall ─────────────────────────────────────────────────────────────────
-## Remove o binário de ~/.local/bin e /usr/local/bin (se existirem)
+## Removes the binary from ~/.local/bin and /usr/local/bin (if they exist)
 uninstall:
 	@printf "$(BOLD)$(CYAN)  Uninstalling$(RESET) $(BINARY)...\n"
 	@removed=0; \
@@ -129,15 +132,52 @@ uninstall:
 		printf "$(YELLOW)  ⚠ Nenhuma instalação encontrada.$(RESET)\n"; \
 	fi
 
+# ── release ───────────────────────────────────────────────────────────────────
+## Calculates the next version via Conventional Commits and creates the git tag
+release:
+	@chmod +x scripts/release.sh
+	@./scripts/release.sh
+
+# ── release (dry-run) ─────────────────────────────────────────────────────────
+## Displays the calculated next version without creating any tag
+release-dry:
+	@chmod +x scripts/release.sh
+	@./scripts/release.sh --dry-run
+
+# ── snapshot ──────────────────────────────────────────────────────────────────
+## Local multi-platform build with goreleaser (without publishing to GitHub)
+snapshot:
+	@printf "$(BOLD)$(CYAN)  Snapshot$(RESET)   goreleaser build local...\n"
+	@command -v goreleaser >/dev/null 2>&1 || { \
+		printf "$(RED)  ✗ goreleaser não encontrado.$(RESET)\n"; \
+		printf "  Instale com: $(CYAN)go install github.com/goreleaser/goreleaser/v2@latest$(RESET)\n"; \
+		exit 1; \
+	}
+	@goreleaser release --snapshot --clean
+	@printf "$(BOLD)$(GREEN)  ✓ Snapshot$(RESET)  Binários em ./dist/\n"
+
+# ── changelog ────────────────────────────────────────────────────────────────
+## Generates or updates CHANGELOG.md from commits (requires git-cliff)
+changelog:
+	@printf "$(BOLD)$(CYAN)  Changelog$(RESET)  gerando CHANGELOG.md...\n"
+	@command -v git-cliff >/dev/null 2>&1 || { \
+		printf "$(RED)  ✗ git-cliff não encontrado.$(RESET)\n"; \
+		printf "  Instale com: $(CYAN)cargo install git-cliff$(RESET)\n"; \
+		printf "  Ou via:      $(CYAN)brew install git-cliff$(RESET)\n"; \
+		exit 1; \
+	}
+	@git-cliff --output CHANGELOG.md
+	@printf "$(BOLD)$(GREEN)  ✓ Gerado$(RESET)   CHANGELOG.md\n"
+
 # ── clean ─────────────────────────────────────────────────────────────────────
-## Remove o diretório ./dist com os artefatos de build
+## Removes the ./dist directory with build artifacts
 clean:
 	@printf "$(BOLD)$(CYAN)  Cleaning$(RESET)   $(BUILD_DIR)/\n"
 	@rm -rf $(BUILD_DIR)
 	@printf "$(BOLD)$(GREEN)  ✓ Done$(RESET)\n"
 
 # ── help ──────────────────────────────────────────────────────────────────────
-## Exibe todos os targets disponíveis
+## Displays all available targets
 help:
 	@printf "\n$(BOLD)$(PURPLE)⚡ cpp-gen$(RESET) — Makefile\n\n"
 	@printf "$(BOLD)Uso:$(RESET)  make $(CYAN)<target>$(RESET)\n\n"
@@ -157,10 +197,14 @@ help:
 	@printf "\n$(BOLD)Exemplos:$(RESET)\n"
 	@printf "  make install                $(GRAY)# instala em ~/.local/bin$(RESET)\n"
 	@printf "  make install-global         $(GRAY)# instala em /usr/local/bin$(RESET)\n"
-	@printf "  make INSTALL_DIR=~/bin install $(GRAY)# diretório customizado$(RESET)\n\n"
+	@printf "  make INSTALL_DIR=~/bin install $(GRAY)# diretório customizado$(RESET)\n"
+	@printf "  make release                $(GRAY)# cria a próxima tag de release$(RESET)\n"
+	@printf "  make release-dry            $(GRAY)# simula a próxima versão (dry-run)$(RESET)\n"
+	@printf "  make snapshot               $(GRAY)# build local multi-plataforma$(RESET)\n"
+	@printf "  make changelog              $(GRAY)# atualiza CHANGELOG.md$(RESET)\n\n"
 
 # ==============================================================================
-# Target interno — Log pós-instalação com instruções de PATH
+# Internal target — Post-install log with PATH instructions
 # ==============================================================================
 
 INSTALL_LOCATION ?= $(INSTALL_DIR)
@@ -174,7 +218,7 @@ _post_install_log:
 	@printf "$(BOLD)$(PURPLE)╚══════════════════════════════════════════════════════════════╝$(RESET)\n"
 	@printf "\n"
 
-# Verifica se o diretório de instalação já está no PATH
+# Checks if the installation directory is already in PATH
 	@if echo "$$PATH" | tr ':' '\n' | grep -qx "$(INSTALL_LOCATION)"; then \
 		printf "$(BOLD)$(GREEN)  ✓ $(INSTALL_LOCATION)$(RESET) já está no seu PATH. Tudo pronto!\n\n"; \
 		printf "  Execute: $(BOLD)$(CYAN)$(BINARY) --help$(RESET)\n\n"; \
@@ -186,7 +230,7 @@ _post_install_log:
 		$(MAKE) --no-print-directory _log_next_steps; \
 	fi
 
-# ── Instruções bash / zsh ─────────────────────────────────────────────────────
+# ── bash / zsh instructions ───────────────────────────────────────────────────
 .PHONY: _log_bash_zsh
 _log_bash_zsh:
 	@printf "$(BOLD)$(CYAN)  ┌─ Bash / Zsh $(GRAY)─────────────────────────────────────────────$(RESET)\n"
@@ -209,7 +253,7 @@ _log_bash_zsh:
 	@printf "$(BOLD)$(CYAN)  └─────────────────────────────────────────────────────────────$(RESET)\n"
 	@printf "\n"
 
-# ── Instruções fish ───────────────────────────────────────────────────────────
+# ── fish instructions ─────────────────────────────────────────────────────────
 .PHONY: _log_fish
 _log_fish:
 	@printf "$(BOLD)$(CYAN)  ┌─ Fish Shell $(GRAY)────────────────────────────────────────────$(RESET)\n"
@@ -234,7 +278,7 @@ _log_fish:
 	@printf "$(BOLD)$(CYAN)  └─────────────────────────────────────────────────────────────$(RESET)\n"
 	@printf "\n"
 
-# ── Próximos passos ───────────────────────────────────────────────────────────
+# ── Next steps ────────────────────────────────────────────────────────────────
 .PHONY: _log_next_steps
 _log_next_steps:
 	@printf "$(BOLD)  Após configurar o PATH, recarregue o shell e execute:$(RESET)\n"

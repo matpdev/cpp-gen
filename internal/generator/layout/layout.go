@@ -1,22 +1,22 @@
-// Package layout define as especificações de estrutura de pastas para projetos C++.
+// Package layout defines the folder structure specifications for C++ projects.
 //
-// Constantes de kind exportadas para uso por outros pacotes sem importar config:
+// Exported kind constants for use by other packages without importing config:
 //
 //	layout.KindSeparate, layout.KindMerged, layout.KindFlat, layout.KindModular, layout.KindTwoRoot
 //
-// Cada layout (padrão de organização) determina:
-//   - Quais diretórios criar
-//   - Onde ficam os arquivos fonte, headers e testes
-//   - Quais diretórios de include o CMake usa em target_include_directories()
-//   - O prefixo usado nas diretivas #include dos arquivos C++ gerados
+// Each layout (organization pattern) determines:
+//   - Which directories to create
+//   - Where source files, headers and tests are located
+//   - Which include directories CMake uses in target_include_directories()
+//   - The prefix used in #include directives of generated C++ files
 //
-// Layouts disponíveis:
+// Available layouts:
 //
-//	separate  — include/<nome>/ + src/ (clássico CMake)
-//	merged    — <nome>/ com headers e sources juntos (Pitchfork / P1204R0)
-//	flat      — tudo em src/ sem separação
-//	modular   — libs/<nome>/ para multi-módulos (Pitchfork libs/)
-//	two-root  — include/ + src/ sem subdiretório de namespace
+//	separate  — include/<name>/ + src/ (classic CMake)
+//	merged    — <name>/ with headers and sources together (Pitchfork / P1204R0)
+//	flat      — everything in src/ without separation
+//	modular   — libs/<name>/ for multi-modules (Pitchfork libs/)
+//	two-root  — include/ + src/ without a namespace subdirectory
 package layout
 
 import (
@@ -28,11 +28,11 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Constantes de kind exportadas
+// Exported kind constants
 // ─────────────────────────────────────────────────────────────────────────────
-// Aliases das constantes config.FolderLayout expostos diretamente pelo pacote
-// layout para que outros pacotes (ex: structure.go) possam comparar spec.Kind
-// sem precisar importar o pacote config separadamente.
+// Aliases of config.FolderLayout constants exposed directly by the layout
+// package so other packages (e.g.: structure.go) can compare spec.Kind
+// without needing to import the config package separately.
 
 const (
 	KindSeparate = config.LayoutSeparate
@@ -43,49 +43,49 @@ const (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Spec — especificação completa de um layout
+// Spec — complete layout specification
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Spec descreve todos os aspectos parametrizáveis de um layout de pastas C++.
-// É calculada uma vez por projeto em Resolve() e usada por todos os geradores
-// (structure.go, cmake.go) para saber onde criar arquivos e como configurar o CMake.
+// Spec describes all parameterizable aspects of a C++ folder layout.
+// It is calculated once per project in Resolve() and used by all generators
+// (structure.go, cmake.go) to know where to create files and how to configure CMake.
 type Spec struct {
-	// Kind é o identificador do layout (ex: "separate", "merged").
+	// Kind is the layout identifier (e.g.: "separate", "merged").
 	Kind config.FolderLayout
 
-	// ── Diretórios a criar ────────────────────────────────────────────────────
+	// ── Directories to create ────────────────────────────────────────────────────
 
-	// Dirs lista todos os diretórios a criar (relativos à raiz do projeto).
-	// Inclui todos os intermediários necessários — os geradores usam MkdirAll.
+	// Dirs lists all directories to create (relative to the project root).
+	// Includes all necessary intermediates — generators use MkdirAll.
 	Dirs []string
 
-	// ── Caminhos dos arquivos gerados ─────────────────────────────────────────
-	// Todos os caminhos são relativos à raiz do projeto.
+	// ── Generated file paths ──────────────────────────────────────────────────
+	// All paths are relative to the project root.
 
-	// MainCPP é o caminho para o arquivo de entrada de executáveis (main.cpp).
+	// MainCPP is the path to the executable entry file (main.cpp).
 	MainCPP string
 
-	// LibCPP é o caminho para o arquivo de implementação de bibliotecas.
+	// LibCPP is the path to the library implementation file.
 	LibCPP string
 
-	// PublicHPP é o caminho para o header público principal da biblioteca.
+	// PublicHPP is the path to the library's main public header.
 	PublicHPP string
 
-	// TestCPP é o caminho para o arquivo de testes principal.
+	// TestCPP is the path to the main test file.
 	TestCPP string
 
-	// ── Configuração CMake ────────────────────────────────────────────────────
+	// ── CMake configuration ───────────────────────────────────────────────────
 
-	// CMakeSubdir é o subdiretório passado para add_subdirectory() no
-	// CMakeLists.txt raiz para o target principal (ex: "src", "mylib", "libs/mylib").
+	// CMakeSubdir is the subdirectory passed to add_subdirectory() in the
+	// root CMakeLists.txt for the main target (e.g.: "src", "mylib", "libs/mylib").
 	CMakeSubdir string
 
-	// CMakeTestsDir é o subdiretório dos testes (quase sempre "tests").
+	// CMakeTestsDir is the tests subdirectory (almost always "tests").
 	CMakeTestsDir string
 
-	// CMakeIncludeBlock é o bloco pré-formatado de target_include_directories()
-	// para o target principal, pronto para inserção direta no template CMake.
-	// Exemplo:
+	// CMakeIncludeBlock is the pre-formatted block of target_include_directories()
+	// for the main target, ready for direct insertion into the CMake template.
+	// Example:
 	//     PUBLIC
 	//         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 	//         $<INSTALL_INTERFACE:include>
@@ -93,46 +93,46 @@ type Spec struct {
 	//         ${CMAKE_CURRENT_SOURCE_DIR}
 	CMakeIncludeBlock string
 
-	// CMakeTestIncludeBlock é o bloco de include dirs para o target de testes.
+	// CMakeTestIncludeBlock is the include dirs block for the test target.
 	CMakeTestIncludeBlock string
 
-	// CMakeModularLibDir é o diretório da biblioteca no layout modular.
-	// Preenchido apenas quando Kind == LayoutModular; vazio nos demais.
+	// CMakeModularLibDir is the library directory in the modular layout.
+	// Populated only when Kind == LayoutModular; empty otherwise.
 	CMakeModularLibDir string
 
 	// ── Include C++ ───────────────────────────────────────────────────────────
 
-	// IncludePrefix é o prefixo de diretório usado nas diretivas #include
-	// dos arquivos C++ gerados.
+	// IncludePrefix is the directory prefix used in the #include directives
+	// of generated C++ files.
 	//
-	// Exemplos:
+	// Examples:
 	//   "mylib/"   → #include "mylib/mylib.hpp"   (separate, merged, modular)
 	//   ""         → #include "mylib.hpp"          (flat, two-root)
 	IncludePrefix string
 
-	// ── Notas documentais ─────────────────────────────────────────────────────
+	// ── Documentation notes ───────────────────────────────────────────────────
 
-	// LayoutNote é um comentário inserido no CMakeLists.txt gerado explicando
-	// brevemente a convenção de layout adotada e onde encontrar a documentação.
+	// LayoutNote is a comment inserted in the generated CMakeLists.txt explaining
+	// briefly the layout convention adopted and where to find the documentation.
 	LayoutNote string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Resolve — fábrica principal
+// Resolve — main factory
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Resolve calcula e retorna o Spec completo para a combinação de nome de projeto,
-// tipo de projeto e layout escolhido.
+// Resolve calculates and returns the complete Spec for the combination of project
+// name, project type and chosen layout.
 //
-// Todos os caminhos de arquivo retornados são relativos à raiz do projeto.
-// Os blocos CMake são pré-formatados e prontos para inserção nos templates.
+// All returned file paths are relative to the project root.
+// CMake blocks are pre-formatted and ready for insertion into templates.
 //
-// Parâmetros:
+// Parameters:
 //
-//	name        — nome do projeto (ex: "minha-lib")
-//	nameSnake   — nome em snake_case   (ex: "minha_lib")
-//	layout      — constante FolderLayout escolhida
-//	projectType — tipo de artefato (executable, static-lib, header-only)
+//	name        — project name (e.g.: "minha-lib")
+//	nameSnake   — name in snake_case   (e.g.: "minha_lib")
+//	layout      — chosen FolderLayout constant
+//	projectType — artifact type (executable, static-lib, header-only)
 func Resolve(
 	name string,
 	nameSnake string,
@@ -154,20 +154,20 @@ func Resolve(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Layouts individuais
+// Individual layouts
 // ─────────────────────────────────────────────────────────────────────────────
 
-// resolveSeparate retorna a spec do layout clássico com separação include/<nome>/ e src/.
+// resolveSeparate returns the spec for the classic layout with include/<name>/ and src/ separation.
 //
-// Estrutura gerada:
+// Generated structure:
 //
-//	include/<nome>/  ← headers públicos com prefixo de namespace
-//	src/             ← implementações e headers privados
-//	tests/           ← testes unitários e de integração
-//	cmake/           ← módulos CMake auxiliares
-//	docs/            ← documentação
+//	include/<name>/  ← public headers with namespace prefix
+//	src/             ← implementations and private headers
+//	tests/           ← unit and integration tests
+//	cmake/           ← auxiliary CMake modules
+//	docs/            ← documentation
 //
-// Exemplo de include: #include "<nome>/file.hpp"
+// Example include: #include "<name>/file.hpp"
 // CMake: PUBLIC include, PRIVATE src
 func resolveSeparate(name, nameSnake string, pt config.ProjectType) *Spec {
 	isHeaderOnly := pt == config.TypeHeaderOnly
@@ -221,22 +221,22 @@ func resolveSeparate(name, nameSnake string, pt config.ProjectType) *Spec {
 	}
 }
 
-// resolveMerged retorna a spec do layout Pitchfork / P1204R0 (merged placement).
+// resolveMerged returns the spec for the Pitchfork / P1204R0 layout (merged placement).
 //
-// Headers e implementações ficam no mesmo diretório <nome>/, eliminando a
-// necessidade de navegar entre include/ e src/. Unit tests ficam como arquivos
-// irmãos (*.<nome>.test.cpp). Tests de integração ficam em tests/.
+// Headers and implementations are in the same <name>/ directory, eliminating the
+// need to navigate between include/ and src/. Unit tests remain as sibling
+// files (*.<name>.test.cpp). Integration tests are in tests/.
 //
-// Estrutura gerada:
+// Generated structure:
 //
-//	<nome>/           ← headers (.hpp) e fontes (.cpp) juntos
-//	<nome>/*.test.cpp ← unit tests ao lado dos módulos (gerado se biblioteca)
-//	tests/            ← testes de integração e funcionais
-//	cmake/            ← módulos CMake auxiliares
-//	docs/             ← documentação
+//	<name>/           ← headers (.hpp) and sources (.cpp) together
+//	<name>/*.test.cpp ← unit tests alongside modules (generated if library)
+//	tests/            ← integration and functional tests
+//	cmake/            ← auxiliary CMake modules
+//	docs/             ← documentation
 //
-// Exemplo de include: #include "<nome>/file.hpp"
-// CMake: PUBLIC ${PROJECT_SOURCE_DIR} (raiz como base de includes)
+// Example include: #include "<name>/file.hpp"
+// CMake: PUBLIC ${PROJECT_SOURCE_DIR} (root as include base)
 func resolveMerged(name, nameSnake string, pt config.ProjectType) *Spec {
 	dirs := []string{
 		name,
@@ -250,7 +250,7 @@ func resolveMerged(name, nameSnake string, pt config.ProjectType) *Spec {
 	publicHPP := filepath.Join(name, nameSnake+".hpp")
 	testCPP := filepath.Join("tests", "driver.cpp")
 
-	// No merged layout, o CMake subdir é o próprio diretório do projeto
+	// In the merged layout, the CMake subdir is the project's own directory
 	cmakeSubdir := name
 
 	includeBlock := buildIncludeBlock(
@@ -285,20 +285,20 @@ func resolveMerged(name, nameSnake string, pt config.ProjectType) *Spec {
 	}
 }
 
-// resolveFlat retorna a spec do layout plano (tudo em src/).
+// resolveFlat returns the spec for the flat layout (everything in src/).
 //
-// Headers e implementações ficam juntos em src/ sem nenhuma separação.
-// É o layout mais simples, indicado para executáveis e projetos pequenos
-// onde a distinção entre API pública e privada não é relevante.
+// Headers and implementations are together in src/ without any separation.
+// It is the simplest layout, suitable for executables and small projects
+// where the distinction between public and private API is not relevant.
 //
-// Estrutura gerada:
+// Generated structure:
 //
-//	src/   ← headers (.hpp) e fontes (.cpp) no mesmo lugar
-//	tests/ ← testes
-//	cmake/ ← módulos CMake auxiliares
-//	docs/  ← documentação
+//	src/   ← headers (.hpp) and sources (.cpp) in the same place
+//	tests/ ← tests
+//	cmake/ ← auxiliary CMake modules
+//	docs/  ← documentation
 //
-// Exemplo de include: #include "file.hpp" (sem prefixo de namespace)
+// Example include: #include "file.hpp" (without namespace prefix)
 // CMake: PRIVATE src
 func resolveFlat(name, nameSnake string, pt config.ProjectType) *Spec {
 	dirs := []string{
@@ -313,8 +313,8 @@ func resolveFlat(name, nameSnake string, pt config.ProjectType) *Spec {
 	publicHPP := filepath.Join("src", nameSnake+".hpp")
 	testCPP := filepath.Join("tests", "test_main.cpp")
 
-	// Flat: sem PUBLIC includes — tudo é privado ao target.
-	// Para header-only, INTERFACE include aponta para src/.
+	// Flat: no PUBLIC includes — everything is private to the target.
+	// For header-only, INTERFACE include points to src/.
 	var includeBlock string
 	if pt == config.TypeHeaderOnly {
 		includeBlock = buildIncludeBlock(
@@ -353,23 +353,23 @@ func resolveFlat(name, nameSnake string, pt config.ProjectType) *Spec {
 	}
 }
 
-// resolveModular retorna a spec do layout multi-módulo Pitchfork com libs/.
+// resolveModular returns the spec for the Pitchfork multi-module layout with libs/.
 //
-// Cada biblioteca/módulo vive em seu próprio subdiretório dentro de libs/.
-// Executáveis ficam em apps/. Este layout facilita a extração futura de módulos
-// em projetos separados e é adequado para projetos grandes com múltiplos componentes.
+// Each library/module lives in its own subdirectory within libs/.
+// Executables are in apps/. This layout facilitates the future extraction of modules
+// into separate projects and is suitable for large projects with multiple components.
 //
-// Estrutura gerada:
+// Generated structure:
 //
-//	libs/<nome>/include/<nome>/  ← headers públicos
-//	libs/<nome>/src/             ← implementações
-//	apps/                        ← executáveis (entry points)
-//	tests/                       ← testes
-//	cmake/                       ← módulos CMake auxiliares
-//	docs/                        ← documentação
+//	libs/<name>/include/<name>/  ← public headers
+//	libs/<name>/src/             ← implementations
+//	apps/                        ← executables (entry points)
+//	tests/                       ← tests
+//	cmake/                       ← auxiliary CMake modules
+//	docs/                        ← documentation
 //
-// Exemplo de include: #include "<nome>/file.hpp"
-// CMake: PUBLIC libs/<nome>/include, PRIVATE libs/<nome>/src
+// Example include: #include "<name>/file.hpp"
+// CMake: PUBLIC libs/<name>/include, PRIVATE libs/<name>/src
 func resolveModular(name, nameSnake string, pt config.ProjectType) *Spec {
 	libDir := filepath.Join("libs", name)
 
@@ -382,20 +382,20 @@ func resolveModular(name, nameSnake string, pt config.ProjectType) *Spec {
 		"docs",
 	}
 
-	// Para modular, o executável fica em apps/ e a lib em libs/<nome>/
+	// For modular, the executable is in apps/ and the lib in libs/<name>/
 	mainCPP := filepath.Join("apps", "main.cpp")
 	libCPP := filepath.Join(libDir, "src", nameSnake+".cpp")
 	publicHPP := filepath.Join(libDir, "include", name, nameSnake+".hpp")
 	testCPP := filepath.Join("tests", "test_main.cpp")
 
-	// O CMakeSubdir aponta para a biblioteca. O executável apps/main.cpp
-	// é adicionado diretamente no root CMakeLists.txt (ver cmake.go).
+	// CMakeSubdir points to the library. The apps/main.cpp executable
+	// is added directly in the root CMakeLists.txt (see cmake.go).
 	cmakeSubdir := libDir
 
-	// No layout modular, o CMakeLists.txt em libs/<nome>/ SEMPRE define um target
-	// de biblioteca estática — mesmo quando o projeto é um executável.
-	// O executável (apps/main.cpp) é definido no root CMakeLists.txt e linka
-	// à lib. Portanto forçamos TypeStaticLib para gerar PUBLIC/PRIVATE corretos.
+	// In the modular layout, the CMakeLists.txt in libs/<name>/ ALWAYS defines a
+	// static library target — even when the project is an executable.
+	// The executable (apps/main.cpp) is defined in the root CMakeLists.txt and links
+	// to the lib. Therefore we force TypeStaticLib to generate correct PUBLIC/PRIVATE.
 	includeBlock := buildIncludeBlock(
 		[]string{
 			"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>",
@@ -404,7 +404,7 @@ func resolveModular(name, nameSnake string, pt config.ProjectType) *Spec {
 		[]string{
 			"${CMAKE_CURRENT_SOURCE_DIR}/src",
 		},
-		config.TypeStaticLib, // sempre lib, independente do tipo do projeto
+		config.TypeStaticLib, // always lib, regardless of the project type
 	)
 
 	testIncludeBlock := indent(4,
@@ -433,21 +433,21 @@ func resolveModular(name, nameSnake string, pt config.ProjectType) *Spec {
 	}
 }
 
-// resolveTwoRoot retorna a spec do layout two-root: include/ + src/ sem namespace subdir.
+// resolveTwoRoot returns the spec for the two-root layout: include/ + src/ without a namespace subdir.
 //
-// Semelhante ao Separate, mas os headers ficam diretamente em include/*.hpp
-// sem criar um subdiretório de namespace (include/<nome>/). Comum em projetos
-// menores ou bibliotecas com um único header principal.
+// Similar to Separate, but headers are directly in include/*.hpp
+// without creating a namespace subdirectory (include/<name>/). Common in smaller
+// projects or libraries with a single main header.
 //
-// Estrutura gerada:
+// Generated structure:
 //
-//	include/  ← headers públicos (sem subdir de namespace)
-//	src/      ← implementações
-//	tests/    ← testes
-//	cmake/    ← módulos CMake auxiliares
-//	docs/     ← documentação
+//	include/  ← public headers (without namespace subdir)
+//	src/      ← implementations
+//	tests/    ← tests
+//	cmake/    ← auxiliary CMake modules
+//	docs/     ← documentation
 //
-// Exemplo de include: #include "file.hpp" (sem prefixo de namespace)
+// Example include: #include "file.hpp" (without namespace prefix)
 // CMake: PUBLIC include, PRIVATE src
 func resolveTwoRoot(name, nameSnake string, pt config.ProjectType) *Spec {
 	isHeaderOnly := pt == config.TypeHeaderOnly
@@ -499,16 +499,16 @@ func resolveTwoRoot(name, nameSnake string, pt config.ProjectType) *Spec {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers de construção de blocos CMake
+// CMake block construction helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// buildIncludeBlock constrói o bloco de argumentos para target_include_directories()
-// com base nos diretórios públicos e privados fornecidos, adaptado ao tipo de projeto.
+// buildIncludeBlock builds the arguments block for target_include_directories()
+// based on the provided public and private directories, adapted to the project type.
 //
-// Para projetos header-only (INTERFACE), todo o bloco usa INTERFACE em vez de
-// PUBLIC/PRIVATE, pois targets INTERFACE não podem ter propriedades PRIVATE.
+// For header-only projects (INTERFACE), the entire block uses INTERFACE instead of
+// PUBLIC/PRIVATE, as INTERFACE targets cannot have PRIVATE properties.
 //
-// Exemplo de saída para biblioteca estática:
+// Example output for a static library:
 //
 //	PUBLIC
 //	    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -519,7 +519,7 @@ func buildIncludeBlock(public, private []string, pt config.ProjectType) string {
 	var sb strings.Builder
 
 	if pt == config.TypeHeaderOnly {
-		// Header-only usa INTERFACE para PUBLIC e ignora PRIVATE
+		// Header-only uses INTERFACE for PUBLIC and ignores PRIVATE
 		if len(public) > 0 {
 			sb.WriteString("    INTERFACE\n")
 			for _, p := range public {
@@ -529,7 +529,7 @@ func buildIncludeBlock(public, private []string, pt config.ProjectType) string {
 		return strings.TrimRight(sb.String(), "\n")
 	}
 
-	// Executável: usa apenas PRIVATE (sem API pública instalável)
+	// Executable: uses only PRIVATE (no installable public API)
 	if pt == config.TypeExecutable {
 		allPrivate := append(public, private...)
 		if len(allPrivate) > 0 {
@@ -541,7 +541,7 @@ func buildIncludeBlock(public, private []string, pt config.ProjectType) string {
 		return strings.TrimRight(sb.String(), "\n")
 	}
 
-	// Biblioteca estática: PUBLIC para a API, PRIVATE para implementação
+	// Static library: PUBLIC for the API, PRIVATE for implementation
 	if len(public) > 0 {
 		sb.WriteString("    PUBLIC\n")
 		for _, p := range public {
@@ -558,18 +558,18 @@ func buildIncludeBlock(public, private []string, pt config.ProjectType) string {
 	return strings.TrimRight(sb.String(), "\n")
 }
 
-// indent retorna a string com n espaços de indentação à esquerda.
-// Usado para formatar diretórios de include no bloco de tests CMakeLists.txt.
+// indent returns the string with n spaces of indentation on the left.
+// Used to format include directories in the tests CMakeLists.txt block.
 func indent(n int, s string) string {
 	return strings.Repeat(" ", n) + s
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Relatório legível do layout (para diagnóstico e --verbose)
+// Human-readable layout report (for diagnostics and --verbose)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Summary retorna uma string multi-linha com um resumo legível do Spec,
-// útil para exibição em modo verbose ou logs de diagnóstico.
+// Summary returns a multi-line string with a human-readable summary of the Spec,
+// useful for display in verbose mode or diagnostic logs.
 func (s *Spec) Summary() string {
 	var sb strings.Builder
 

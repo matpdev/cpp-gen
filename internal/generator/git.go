@@ -1,4 +1,4 @@
-// Package generator contém toda a lógica de geração de projetos C++ do cpp-gen.
+// Package generator contains all C++ project generation logic for cpp-gen.
 package generator
 
 import (
@@ -8,17 +8,17 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generateGit — ponto de entrada
+// generateGit — entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// generateGit coordena todas as operações relacionadas ao repositório Git:
+// generateGit coordinates all operations related to the Git repository:
 //
-//  1. Gera o README.md (sempre, independente de UseGit)
-//  2. Gera o .gitignore (sempre, independente de UseGit)
-//  3. Executa `git init` e cria um commit inicial (somente se UseGit == true)
+//  1. Generates README.md (always, regardless of UseGit)
+//  2. Generates .gitignore (always, regardless of UseGit)
+//  3. Runs `git init` and creates an initial commit (only if UseGit == true)
 //
-// A separação entre geração dos arquivos e inicialização do git permite que
-// projetos sem git ainda tenham um .gitignore e README prontos para uso futuro.
+// The separation between file generation and git initialization allows projects
+// without git to still have a .gitignore and README ready for future use.
 func generateGit(root string, data *TemplateData, verbose bool) error {
 	// ── README.md ─────────────────────────────────────────────────────────────
 	readmePath := filepath.Join(root, "README.md")
@@ -35,8 +35,8 @@ func generateGit(root string, data *TemplateData, verbose bool) error {
 	// ── Git init + commit inicial ─────────────────────────────────────────────
 	if data.UseGit {
 		if err := initGitRepository(root, data, verbose); err != nil {
-			// Falha no git não é crítica — o projeto foi gerado corretamente.
-			// Apenas avisa o usuário em vez de abortar toda a geração.
+			// Git failure is not critical — the project was generated correctly.
+			// Just warns the user instead of aborting the entire generation.
 			fmt.Printf("    ⚠ Aviso: não foi possível inicializar o Git: %v\n", err)
 			fmt.Printf("      Execute manualmente: cd %s && git init\n", root)
 		}
@@ -49,24 +49,24 @@ func generateGit(root string, data *TemplateData, verbose bool) error {
 // initGitRepository
 // ─────────────────────────────────────────────────────────────────────────────
 
-// initGitRepository executa a sequência de comandos Git para inicializar
-// um repositório limpo com um commit inicial contendo todos os arquivos gerados.
+// initGitRepository executes the sequence of Git commands to initialize
+// a clean repository with an initial commit containing all generated files.
 //
-// Sequência executada:
+// Executed sequence:
 //  1. git init
 //  2. git add .
 //  3. git commit -m "chore: initial project setup via cpp-gen"
 //
-// Se o binário `git` não estiver disponível no PATH, retorna um erro descritivo.
+// If the `git` binary is not available in PATH, returns a descriptive error.
 func initGitRepository(root string, data *TemplateData, verbose bool) error {
-	// Verifica se o git está disponível antes de tentar executar qualquer comando.
+	// Checks if git is available before attempting to run any command.
 	if _, err := exec.LookPath("git"); err != nil {
 		return fmt.Errorf("binário 'git' não encontrado no PATH; instale o Git e execute manualmente")
 	}
 
 	// ── git init ──────────────────────────────────────────────────────────────
 	if err := runGitCommand(root, verbose, "init", "-b", "main"); err != nil {
-		// Algumas versões antigas do git não suportam -b; tenta sem a flag.
+		// Some older git versions do not support -b; try without the flag.
 		if err2 := runGitCommand(root, verbose, "init"); err2 != nil {
 			return fmt.Errorf("git init: %w", err2)
 		}
@@ -99,8 +99,8 @@ func initGitRepository(root string, data *TemplateData, verbose bool) error {
 	return nil
 }
 
-// runGitCommand executa um comando git no diretório root e retorna qualquer erro.
-// Se verbose for true, imprime a saída completa do comando no stdout.
+// runGitCommand executes a git command in the root directory and returns any error.
+// If verbose is true, prints the full command output to stdout.
 func runGitCommand(root string, verbose bool, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = root
@@ -118,11 +118,11 @@ func runGitCommand(root string, verbose bool, args ...string) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers de label
+// Label helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// packageManagerLabel retorna uma string descritiva do gerenciador de pacotes
-// para uso na mensagem de commit inicial.
+// packageManagerLabel returns a descriptive string for the package manager
+// for use in the initial commit message.
 func packageManagerLabel(data *TemplateData) string {
 	switch {
 	case data.UseVCPKG:
@@ -134,8 +134,8 @@ func packageManagerLabel(data *TemplateData) string {
 	}
 }
 
-// ideLabel retorna uma string descritiva da IDE configurada
-// para uso na mensagem de commit inicial.
+// ideLabel returns a descriptive string for the configured IDE
+// for use in the initial commit message.
 func ideLabel(data *TemplateData) string {
 	switch {
 	case data.IsVSCode:
@@ -153,13 +153,13 @@ func ideLabel(data *TemplateData) string {
 // Template: .gitignore
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplGitignore é o template para o arquivo .gitignore do projeto C++.
+// tmplGitignore is the template for the C++ project's .gitignore file.
 //
-// Cobre os padrões mais comuns de:
-//   - Artefatos de build CMake
+// Covers the most common patterns for:
+//   - CMake build artifacts
 //   - IDEs (VSCode, CLion, Vim/Neovim, Visual Studio, Xcode)
-//   - Sistemas operacionais (macOS, Windows, Linux)
-//   - Ferramentas de análise (coverage, sanitizers, profilers)
+//   - Operating systems (macOS, Windows, Linux)
+//   - Analysis tools (coverage, sanitizers, profilers)
 const tmplGitignore = `# =============================================================================
 # .gitignore para projetos C++ com CMake
 # Gerado pelo cpp-gen (https://github.com/cpp-gen/cpp-gen)
@@ -324,15 +324,15 @@ extern/
 // Template: README.md
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplReadme é o template para o README.md inicial do projeto.
+// tmplReadme is the template for the project's initial README.md.
 //
-// O README inclui:
-//   - Badges de status (placeholders para CI e versão)
-//   - Descrição e features do projeto
-//   - Requisitos de build
-//   - Instruções de build com CMake Presets
-//   - Estrutura de pastas
-//   - Instruções de contribuição e licença
+// The README includes:
+//   - Status badges (placeholders for CI and version)
+//   - Project description and features
+//   - Build requirements
+//   - Build instructions with CMake Presets
+//   - Folder structure
+//   - Contribution and license instructions
 const tmplReadme = `# {{.Name}}
 
 {{if .Description}}> {{.Description}}{{else}}> Projeto C++ moderno gerado pelo [cpp-gen](https://github.com/cpp-gen/cpp-gen).{{end}}

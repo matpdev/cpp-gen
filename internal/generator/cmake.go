@@ -1,4 +1,4 @@
-// Package generator contém toda a lógica de geração de projetos C++ do cpp-gen.
+// Package generator contains all C++ project generation logic for cpp-gen.
 package generator
 
 import (
@@ -7,24 +7,24 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generateCMake — ponto de entrada
+// generateCMake — entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// generateCMake gera todos os arquivos CMake do projeto na seguinte ordem:
+// generateCMake generates all CMake files for the project in the following order:
 //
-//  1. CMakeLists.txt raiz    — configuração principal do projeto
-//  2. src/CMakeLists.txt     — definição do target principal (executable ou library)
-//  3. tests/CMakeLists.txt   — definição dos targets de teste com CTest
-//  4. cmake/CompilerWarnings.cmake — flags de warning reutilizáveis
-//  5. CMakePresets.json      — presets de configure/build/test para todas as IDEs
+//  1. root CMakeLists.txt    — main project configuration
+//  2. src/CMakeLists.txt     — main target definition (executable or library)
+//  3. tests/CMakeLists.txt   — test target definitions with CTest
+//  4. cmake/CompilerWarnings.cmake — reusable warning flags
+//  5. CMakePresets.json      — configure/build/test presets for all IDEs
 func generateCMake(root string, data *TemplateData, verbose bool) error {
-	// O subdiretório do target principal varia com o layout:
+	// The main target subdirectory varies with the layout:
 	//   separate / flat / two-root → src/
-	//   merged                     → <nome>/
-	//   modular                    → libs/<nome>/
+	//   merged                     → <name>/
+	//   modular                    → libs/<name>/
 	srcCMakeRelPath := filepath.Join(data.LayoutCMakeSubdir, "CMakeLists.txt")
 
-	// O subdiretório de testes é sempre "tests", mas obtemos do Spec para consistência.
+	// The tests subdirectory is always "tests", but we read it from the Spec for consistency.
 	testsCMakeRelPath := filepath.Join(data.LayoutSpec.CMakeTestsDir, "CMakeLists.txt")
 
 	steps := []struct {
@@ -70,19 +70,19 @@ func generateCMake(root string, data *TemplateData, verbose bool) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Template: CMakeLists.txt raiz
+// Template: root CMakeLists.txt
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplRootCMake é o template do CMakeLists.txt principal do projeto.
+// tmplRootCMake is the template for the project's main CMakeLists.txt.
 //
-// Responsabilidades:
-//   - Declara o projeto com versão, descrição e linguagem
-//   - Configura o padrão C++ e opções de compilação globais
-//   - Habilita CMAKE_EXPORT_COMPILE_COMMANDS para Clangd / clang-tidy
-//   - Inclui módulos CMake auxiliares (cmake/)
-//   - Integra VCPKG ou FetchContent conforme configuração
-//   - Registra subdiretórios conforme o layout escolhido ({{.Layout}})
-//   - No layout modular com executável, define o target app diretamente aqui
+// Responsibilities:
+//   - Declares the project with version, description and language
+//   - Configures the C++ standard and global compilation options
+//   - Enables CMAKE_EXPORT_COMPILE_COMMANDS for Clangd / clang-tidy
+//   - Includes auxiliary CMake modules (cmake/)
+//   - Integrates VCPKG or FetchContent according to configuration
+//   - Registers subdirectories according to the chosen layout ({{.Layout}})
+//   - In the modular layout with executable, defines the app target directly here
 const tmplRootCMake = `cmake_minimum_required(VERSION 3.20)
 
 # =============================================================================
@@ -242,20 +242,20 @@ message(STATUS "")
 // Template: src/CMakeLists.txt
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplSrcCMake é o template para o CMakeLists.txt do subdiretório de fontes.
+// tmplSrcCMake is the template for the CMakeLists.txt of the sources subdirectory.
 //
-// Este arquivo é gerado no subdiretório indicado pelo layout:
+// This file is generated in the subdirectory indicated by the layout:
 //   - separate / flat / two-root: src/CMakeLists.txt
-//   - merged:                     <nome>/CMakeLists.txt
-//   - modular:                    libs/<nome>/CMakeLists.txt
+//   - merged:                     <name>/CMakeLists.txt
+//   - modular:                    libs/<name>/CMakeLists.txt
 //
-// O campo {{.LayoutCMakeIncludeBlock}} contém o bloco pré-formatado de
-// target_include_directories() correto para o layout escolhido.
+// The {{.LayoutCMakeIncludeBlock}} field contains the pre-formatted
+// target_include_directories() block correct for the chosen layout.
 //
-// O conteúdo gerado depende do tipo de projeto:
-//   - Executável:          add_executable()
-//   - Biblioteca estática: add_library(STATIC)
-//   - Header-only:         add_library(INTERFACE)
+// The generated content depends on the project type:
+//   - Executable:         add_executable()
+//   - Static library:     add_library(STATIC)
+//   - Header-only:        add_library(INTERFACE)
 const tmplSrcCMake = `# =============================================================================
 # =============================================================================
 # CMakeLists.txt — Target principal de {{.Name}}
@@ -373,8 +373,8 @@ target_compile_features(${PROJECT_NAME}
 // Template: tests/CMakeLists.txt
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplTestsCMake é o template para tests/CMakeLists.txt.
-// Registra os executáveis de teste com CTest via add_test().
+// tmplTestsCMake is the template for tests/CMakeLists.txt.
+// Registers test executables with CTest via add_test().
 const tmplTestsCMake = `# =============================================================================
 # =============================================================================
 # tests/CMakeLists.txt — Testes de {{.Name}}
@@ -449,11 +449,11 @@ set_tests_properties({{.Name}}_unit_tests PROPERTIES
 // Template: cmake/CompilerWarnings.cmake
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplCompilerWarnings é o template para cmake/CompilerWarnings.cmake.
-// Define um target de interface `project_warnings` com flags de warning
-// apropriadas para GCC, Clang e MSVC, que pode ser linkado via:
+// tmplCompilerWarnings is the template for cmake/CompilerWarnings.cmake.
+// Defines a `project_warnings` interface target with warning flags
+// appropriate for GCC, Clang and MSVC, which can be linked via:
 //
-//	target_link_libraries(<seu_target> PRIVATE project_warnings)
+//	target_link_libraries(<your_target> PRIVATE project_warnings)
 const tmplCompilerWarnings = `# =============================================================================
 # cmake/CompilerWarnings.cmake
 # =============================================================================
@@ -548,18 +548,18 @@ endif()
 // Template: CMakePresets.json
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplCMakePresets é o template para CMakePresets.json.
+// tmplCMakePresets is the template for CMakePresets.json.
 //
-// CMakePresets.json (CMake 3.20+) é o padrão moderno para definir configurações
-// de build portáveis entre desenvolvedores, IDEs e sistemas de CI.
+// CMakePresets.json (CMake 3.20+) is the modern standard for defining portable
+// build configurations across developers, IDEs and CI systems.
 //
-// Suporte de IDEs:
-//   - VSCode CMake Tools: lê automaticamente e lista os presets
-//   - CLion 2022.1+:      suporte nativo na UI de configuração
-//   - Visual Studio 2019+: suporte nativo
-//   - CLI:                cmake --preset <nome>
+// IDE support:
+//   - VSCode CMake Tools: reads automatically and lists the presets
+//   - CLion 2022.1+:      native support in the configuration UI
+//   - Visual Studio 2019+: native support
+//   - CLI:                cmake --preset <name>
 //
-// Presets gerados:
+// Generated presets:
 //
 //	Configure: base, debug, release, release-with-debug[, vcpkg-debug, vcpkg-release]
 //	Build:     build-debug, build-release

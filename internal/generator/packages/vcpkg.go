@@ -1,9 +1,9 @@
-// Package packages contém os geradores de configuração de gerenciadores
-// de pacotes C++ suportados pelo cpp-gen.
+// Package packages contains the configuration generators for package
+// managers for C++ supported by cpp-gen.
 //
-// Gerenciadores suportados:
+// Supported managers:
 //   - vcpkg.go         — Microsoft VCPKG (manifest mode via vcpkg.json)
-//   - fetchcontent.go  — CMake FetchContent (dependências via cmake/Dependencies.cmake)
+//   - fetchcontent.go  — CMake FetchContent (dependencies via cmake/Dependencies.cmake)
 package packages
 
 import (
@@ -15,34 +15,34 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GenerateVCPKG — ponto de entrada público
+// GenerateVCPKG — public entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// GenerateVCPKG gera os arquivos necessários para integrar o VCPKG ao projeto
-// em modo manifesto (manifest mode), que é a forma recomendada para projetos
-// modernos pois versiona as dependências junto com o código-fonte.
+// GenerateVCPKG generates the necessary files to integrate VCPKG into the project
+// in manifest mode, which is the recommended approach for modern projects
+// as it versions dependencies alongside source code.
 //
-// Arquivos gerados:
+// Generated files:
 //
-//   - vcpkg.json           — manifesto de dependências do projeto
-//   - vcpkg-configuration.json — configuração de baseline e registros
-//   - cmake/Vcpkg.cmake    — módulo CMake auxiliar de documentação/fallback
+//   - vcpkg.json           — project dependencies manifest
+//   - vcpkg-configuration.json — baseline and registry configuration
+//   - cmake/Vcpkg.cmake    — auxiliary CMake module for documentation/fallback
 //
-// Modo manifesto (manifest mode):
+// Manifest mode:
 //
-//	No modo manifesto, o VCPKG lê o vcpkg.json na raiz do projeto e instala
-//	as dependências automaticamente durante o configure do CMake. As dependências
-//	ficam em vcpkg_installed/ (listado no .gitignore).
+//	In manifest mode, VCPKG reads vcpkg.json at the project root and installs
+//	dependencies automatically during CMake configure. Dependencies
+//	are stored in vcpkg_installed/ (listed in .gitignore).
 //
-//	Para adicionar uma dependência:
-//	  1. Adicione ao array "dependencies" no vcpkg.json
-//	  2. Execute: cmake --preset debug  (instala automaticamente)
-//	     Ou manualmente: vcpkg install
+//	To add a dependency:
+//	  1. Add to the "dependencies" array in vcpkg.json
+//	  2. Run: cmake --preset debug  (installs automatically)
+//	     Or manually: vcpkg install
 //
-//	Requerimento: variável de ambiente VCPKG_ROOT deve estar definida,
-//	ou o toolchain file deve ser passado via CMakePresets.json (já configurado).
+//	Requirement: the VCPKG_ROOT environment variable must be defined,
+//	or the toolchain file must be passed via CMakePresets.json (already configured).
 //
-// Referência: https://learn.microsoft.com/vcpkg/concepts/manifest-mode
+// Reference: https://learn.microsoft.com/vcpkg/concepts/manifest-mode
 func GenerateVCPKG(root string, verbose bool) error {
 	steps := []struct {
 		name     string
@@ -56,7 +56,7 @@ func GenerateVCPKG(root string, verbose bool) error {
 			relPath:  "vcpkg.json",
 			tmplName: "vcpkg_manifest",
 			tmpl:     tmplVCPKGManifest,
-			data:     nil, // sem dados de template — conteúdo estático
+			data:     nil, // no template data — static content
 		},
 		{
 			name:     "vcpkg-configuration.json",
@@ -97,12 +97,12 @@ func GenerateVCPKG(root string, verbose bool) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Utilitários internos do pacote
+// Internal package utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-// writePkgFile cria (ou sobrescreve) um arquivo no caminho dado.
-// Cria todos os diretórios pai necessários automaticamente.
-// Se verbose for true, imprime o caminho do arquivo criado.
+// writePkgFile creates (or overwrites) a file at the given path.
+// Creates all necessary parent directories automatically.
+// If verbose is true, prints the path of the created file.
 func writePkgFile(path, content string, verbose bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("criar diretório %q: %w", filepath.Dir(path), err)
@@ -119,8 +119,8 @@ func writePkgFile(path, content string, verbose bool) error {
 	return nil
 }
 
-// renderPkgTemplate processa um template Go (text/template) com os dados
-// fornecidos e retorna o resultado como string.
+// renderPkgTemplate processes a Go template (text/template) with the provided
+// data and returns the result as a string.
 func renderPkgTemplate(name, tmpl string, data any) (string, error) {
 	t, err := template.New(name).Parse(tmpl)
 	if err != nil {
@@ -139,27 +139,27 @@ func renderPkgTemplate(name, tmpl string, data any) (string, error) {
 // Template: vcpkg.json
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplVCPKGManifest é o conteúdo do arquivo vcpkg.json.
+// tmplVCPKGManifest is the content of the vcpkg.json file.
 //
-// O vcpkg.json (manifesto) é o arquivo central do VCPKG em manifest mode.
-// Ele declara:
-//   - Metadados do projeto (name, version, description)
-//   - Dependências diretas com versões mínimas opcionais
-//   - Features opcionais que podem ser habilitadas pelo consumidor
-//   - Overrides de versão para forçar uma versão específica de uma dep
+// The vcpkg.json (manifest) is the central VCPKG file in manifest mode.
+// It declares:
+//   - Project metadata (name, version, description)
+//   - Direct dependencies with optional minimum versions
+//   - Optional features that can be enabled by the consumer
+//   - Version overrides to force a specific version of a dependency
 //
-// Boas práticas:
-//   - Use "version>=" para especificar versão mínima (preferível a "version")
-//   - Adicione "builtin-baseline" no vcpkg-configuration.json para reprodutibilidade
-//   - Mantenha vcpkg_installed/ no .gitignore (gerado automaticamente)
-//   - Versione vcpkg.json E vcpkg-configuration.json para builds reprodutíveis
+// Best practices:
+//   - Use "version>=" to specify minimum version (preferable to "version")
+//   - Add "builtin-baseline" in vcpkg-configuration.json for reproducibility
+//   - Keep vcpkg_installed/ in .gitignore (generated automatically)
+//   - Version both vcpkg.json AND vcpkg-configuration.json for reproducible builds
 //
-// Para encontrar pacotes disponíveis:
+// To find available packages:
 //
-//	vcpkg search <nome>
+//	vcpkg search <name>
 //	https://vcpkg.io/en/packages
 //
-// Referência: https://learn.microsoft.com/vcpkg/reference/vcpkg-json
+// Reference: https://learn.microsoft.com/vcpkg/reference/vcpkg-json
 const tmplVCPKGManifest = `{
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
 
@@ -294,29 +294,29 @@ const tmplVCPKGManifest = `{
 // Template: vcpkg-configuration.json
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplVCPKGConfiguration é o conteúdo do arquivo vcpkg-configuration.json.
+// tmplVCPKGConfiguration is the content of the vcpkg-configuration.json file.
 //
-// O vcpkg-configuration.json define:
-//   - builtin-baseline: hash de commit do repositório vcpkg que garante
-//     que todos os desenvolvedores usem exatamente as mesmas versões
-//     das dependências (reprodutibilidade de builds).
-//   - registries: fontes adicionais de pacotes (registros privados ou
-//     mirrors do registro oficial).
+// The vcpkg-configuration.json defines:
+//   - builtin-baseline: commit hash of the vcpkg repository that ensures
+//     that all developers use exactly the same versions
+//     of dependencies (build reproducibility).
+//   - registries: additional package sources (private registries or
+//     mirrors of the official registry).
 //
-// IMPORTANTE: O campo "builtin-baseline" deve ser atualizado periodicamente
-// para receber correções de segurança e novas versões das dependências.
+// IMPORTANT: The "builtin-baseline" field must be updated periodically
+// to receive security fixes and new versions of dependencies.
 //
-// Para obter o baseline atual:
+// To get the current baseline:
 //
 //	cd $VCPKG_ROOT && git rev-parse HEAD
 //
-// Para atualizar o baseline (e consequentemente as dependências):
+// To update the baseline (and consequently the dependencies):
 //
 //	cd $VCPKG_ROOT && git pull
-//	# Copie o novo hash para "builtin-baseline" abaixo
-//	# Execute: cmake --preset debug  (reinstala com as novas versões)
+//	# Copy the new hash to "builtin-baseline" below
+//	# Run: cmake --preset debug  (reinstalls with the new versions)
 //
-// Referência: https://learn.microsoft.com/vcpkg/reference/vcpkg-configuration-json
+// Reference: https://learn.microsoft.com/vcpkg/reference/vcpkg-configuration-json
 const tmplVCPKGConfiguration = `{
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
 
@@ -372,21 +372,21 @@ const tmplVCPKGConfiguration = `{
 // Template: cmake/Vcpkg.cmake
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplCMakeVcpkg é o conteúdo do arquivo cmake/Vcpkg.cmake.
+// tmplCMakeVcpkg is the content of the cmake/Vcpkg.cmake file.
 //
-// Este módulo CMake serve como:
-//  1. Documentação das opções de integração VCPKG para a equipe
-//  2. Fallback para configurar o toolchain quando CMakePresets.json não é usado
-//  3. Helper para diagnóstico de problemas de configuração
+// This CMake module serves as:
+//  1. Documentation of VCPKG integration options for the team
+//  2. Fallback to configure the toolchain when CMakePresets.json is not used
+//  3. Helper for diagnosing configuration issues
 //
-// NOTA: A integração principal do VCPKG é feita via toolchain file no
-// CMakePresets.json (já configurado pelo cmake.go). Este arquivo é
-// complementar e não é incluído automaticamente — para usá-lo como fallback,
-// inclua-o no CMakeLists.txt principal antes do primeiro project().
+// NOTE: The main VCPKG integration is done via toolchain file in
+// CMakePresets.json (already configured by cmake.go). This file is
+// complementary and not included automatically — to use it as fallback,
+// include it in the main CMakeLists.txt before the first project().
 //
-// IMPORTANTE: O toolchain file do VCPKG deve ser configurado ANTES da chamada
-// project() no CMakeLists.txt. Com CMakePresets.json, isso é feito
-// automaticamente via o campo "toolchainFile" nos presets.
+// IMPORTANT: The VCPKG toolchain file must be configured BEFORE the
+// project() call in CMakeLists.txt. With CMakePresets.json, this is done
+// automatically via the "toolchainFile" field in the presets.
 const tmplCMakeVcpkg = `# =============================================================================
 # cmake/Vcpkg.cmake — Módulo auxiliar de integração VCPKG
 # =============================================================================

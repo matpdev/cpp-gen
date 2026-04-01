@@ -1,15 +1,15 @@
-// Package generator contém toda a lógica de geração de projetos C++ do cpp-gen.
+// Package generator contains all C++ project generation logic for cpp-gen.
 //
-// O pacote é organizado em sub-módulos especializados:
-//   - cmake.go      — Geração de CMakeLists.txt, CMakePresets.json e helpers cmake/
-//   - structure.go  — Criação da estrutura de pastas e arquivos fonte iniciais
-//   - git.go        — Inicialização do repositório Git e geração de .gitignore / README
-//   - clang.go      — Geração de .clangd e .clang-format
-//   - ide/          — Configurações específicas de IDE (VSCode, CLion, Neovim)
-//   - packages/     — Integração com VCPKG e FetchContent
-//   - layout/       — Especificações de estrutura de pastas (Separate, Merged, Flat, Modular, Two-Root)
+// The package is organized into specialized sub-modules:
+//   - cmake.go      — Generation of CMakeLists.txt, CMakePresets.json and cmake/ helpers
+//   - structure.go  — Creation of folder structure and initial source files
+//   - git.go        — Git repository initialization and .gitignore / README generation
+//   - clang.go      — Generation of .clangd and .clang-format
+//   - ide/          — IDE-specific configurations (VSCode, CLion, Neovim)
+//   - packages/     — Integration with VCPKG and FetchContent
+//   - layout/       — Folder structure specifications (Separate, Merged, Flat, Modular, Two-Root)
 //
-// O ponto de entrada público é Generator, criado via New() e executado via Generate().
+// The public entry point is Generator, created via New() and executed via Generate().
 package generator
 
 import (
@@ -28,110 +28,110 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TemplateData — dados passados para todos os templates de geração
+// TemplateData — data passed to all generation templates
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TemplateData centraliza todas as variáveis disponíveis nos templates Go
-// (text/template) usados para gerar os arquivos do projeto.
+// TemplateData centralizes all variables available in Go templates
+// (text/template) used to generate project files.
 //
-// Além dos campos diretos da ProjectConfig, inclui formas derivadas do nome
-// (NameUpper, NameSnake, NamePascal) e flags booleanas para simplificar
-// a lógica condicional dentro dos templates ({{if .IsVSCode}}, etc.).
+// In addition to the direct ProjectConfig fields, it includes derived name forms
+// (NameUpper, NameSnake, NamePascal) and boolean flags to simplify
+// conditional logic within templates ({{if .IsVSCode}}, etc.).
 type TemplateData struct {
-	// ── Metadados ──────────────────────────────────────────────────────────────
+	// ── Metadata ───────────────────────────────────────────────────────────────
 
-	// Name é o nome original do projeto, exatamente como digitado (ex: "meu-projeto").
+	// Name is the original project name, exactly as typed (e.g. "my-project").
 	Name string
 
-	// NameUpper é o nome em UPPER_SNAKE_CASE, usado em variáveis CMake e include guards.
-	// Exemplo: "meu-projeto" → "MEU_PROJETO"
+	// NameUpper is the name in UPPER_SNAKE_CASE, used in CMake variables and include guards.
+	// Example: "my-project" → "MY_PROJECT"
 	NameUpper string
 
-	// NameSnake é o nome em snake_case, usado em nomes de arquivo e funções C++.
-	// Exemplo: "meu-projeto" → "meu_projeto"
+	// NameSnake is the name in snake_case, used in file names and C++ functions.
+	// Example: "my-project" → "my_project"
 	NameSnake string
 
-	// NamePascal é o nome em PascalCase, usado em nomes de classe e namespace C++.
-	// Exemplo: "meu-projeto" → "MeuProjeto"
+	// NamePascal is the name in PascalCase, used in C++ class and namespace names.
+	// Example: "my-project" → "MyProject"
 	NamePascal string
 
-	// Description é a descrição do projeto fornecida pelo usuário.
+	// Description is the project description provided by the user.
 	Description string
 
-	// Author é o nome do autor ou organização.
+	// Author is the name of the author or organization.
 	Author string
 
-	// Version é a versão inicial no formato SemVer (ex: "1.0.0").
+	// Version is the initial version in SemVer format (e.g. "1.0.0").
 	Version string
 
-	// Year é o ano atual, usado em cabeçalhos de copyright e README.
+	// Year is the current year, used in copyright headers and README.
 	Year string
 
-	// ── Configurações técnicas ─────────────────────────────────────────────────
+	// ── Technical configuration ────────────────────────────────────────────────
 
-	// Standard é o padrão C++ como string numérica (ex: "20").
+	// Standard is the C++ standard as a numeric string (e.g. "20").
 	Standard string
 
-	// ── Flags booleanas de tipo de projeto ────────────────────────────────────
-	// Derivadas de config.ProjectType para simplificar os templates.
+	// ── Boolean flags for project type ────────────────────────────────────────
+	// Derived from config.ProjectType to simplify templates.
 
-	IsExecutable bool // true se TypeExecutable
-	IsStaticLib  bool // true se TypeStaticLib
-	IsHeaderOnly bool // true se TypeHeaderOnly
+	IsExecutable bool // true if TypeExecutable
+	IsStaticLib  bool // true if TypeStaticLib
+	IsHeaderOnly bool // true if TypeHeaderOnly
 
-	// ── Flags booleanas de gerenciador de pacotes ─────────────────────────────
+	// ── Boolean flags for package manager ─────────────────────────────────────
 
-	UseVCPKG        bool // true se PkgVCPKG
-	UseFetchContent bool // true se PkgFetchContent
+	UseVCPKG        bool // true if PkgVCPKG
+	UseFetchContent bool // true if PkgFetchContent
 
-	// ── Flags booleanas de IDE ────────────────────────────────────────────────
+	// ── Boolean IDE flags ─────────────────────────────────────────────────────
 
-	IsVSCode bool // true se IDEVSCode
-	IsCLion  bool // true se IDECLion
-	IsNvim   bool // true se IDENvim
-	IsZed    bool // true se IDEZed
+	IsVSCode bool // true if IDEVSCode
+	IsCLion  bool // true if IDECLion
+	IsNvim   bool // true if IDENvim
+	IsZed    bool // true if IDEZed
 
-	// ── Flags de ferramentas opcionais ────────────────────────────────────────
+	// ── Optional tool flags ───────────────────────────────────────────────────
 
-	UseGit         bool // inicializar repositório Git
-	UseClangd      bool // gerar .clangd
-	UseClangFormat bool // gerar .clang-format
+	UseGit         bool // initialize Git repository
+	UseClangd      bool // generate .clangd
+	UseClangFormat bool // generate .clang-format
 
-	// ── Layout de pastas ──────────────────────────────────────────────────────
-	// Derivados do layout.Spec calculado em buildTemplateData().
+	// ── Folder layout ─────────────────────────────────────────────────────────
+	// Derived from the layout.Spec calculated in buildTemplateData().
 
-	// Layout é o identificador do padrão de pastas escolhido (ex: "separate").
+	// Layout is the identifier of the chosen folder pattern (e.g. "separate").
 	Layout string
 
-	// LayoutNote é um comentário explicativo inserido no CMakeLists.txt raiz
-	// descrevendo a convenção de layout adotada.
+	// LayoutNote is an explanatory comment inserted in the root CMakeLists.txt
+	// describing the adopted layout convention.
 	LayoutNote string
 
-	// LayoutCMakeSubdir é o argumento de add_subdirectory() no CMakeLists.txt raiz
-	// para o target principal (ex: "src", "mylib", "libs/mylib").
+	// LayoutCMakeSubdir is the add_subdirectory() argument in the root CMakeLists.txt
+	// for the main target (e.g. "src", "mylib", "libs/mylib").
 	LayoutCMakeSubdir string
 
-	// LayoutCMakeIncludeBlock é o bloco pré-formatado de target_include_directories()
-	// do target principal, pronto para inserção direta no template src/CMakeLists.txt.
+	// LayoutCMakeIncludeBlock is the pre-formatted target_include_directories() block
+	// for the main target, ready for direct insertion into the src/CMakeLists.txt template.
 	LayoutCMakeIncludeBlock string
 
-	// LayoutCMakeTestIncludeBlock é o bloco de include dirs para o target de testes.
+	// LayoutCMakeTestIncludeBlock is the include dirs block for the test target.
 	LayoutCMakeTestIncludeBlock string
 
-	// LayoutIncludePrefix é o prefixo de diretório usado em #include dos arquivos
-	// C++ gerados (ex: "mylib/" → #include "mylib/file.hpp" ; "" → #include "file.hpp").
+	// LayoutIncludePrefix is the directory prefix used in #include of generated C++ files
+	// (e.g. "mylib/" → #include "mylib/file.hpp" ; "" → #include "file.hpp").
 	LayoutIncludePrefix string
 
-	// LayoutIsModular indica que o layout usa libs/<nome>/ com executável em apps/.
-	// Quando true, o cmake.go adiciona o target executável diretamente no root CMakeLists.txt.
+	// LayoutIsModular indicates that the layout uses libs/<name>/ with an executable in apps/.
+	// When true, cmake.go adds the executable target directly in the root CMakeLists.txt.
 	LayoutIsModular bool
 
-	// LayoutModularLibDir é o caminho relativo da biblioteca no layout modular
-	// (ex: "libs/mylib"). Vazio em todos os outros layouts.
+	// LayoutModularLibDir is the relative path of the library in the modular layout
+	// (e.g. "libs/mylib"). Empty in all other layouts.
 	LayoutModularLibDir string
 
-	// LayoutSpec é uma referência ao Spec completo, disponível para os geradores
-	// de estrutura e CMake que precisam dos caminhos de arquivo.
+	// LayoutSpec is a reference to the complete Spec, available to structure and CMake
+	// generators that need the file paths.
 	LayoutSpec *layout.Spec
 }
 
@@ -139,43 +139,43 @@ type TemplateData struct {
 // Generator
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Generator é a estrutura principal que coordena a geração de todos os
-// artefatos de um projeto C++. Deve ser criado com New() e executado com Generate().
+// Generator is the main struct that coordinates the generation of all
+// artifacts for a C++ project. Must be created with New() and executed with Generate().
 type Generator struct {
-	// cfg contém a configuração original fornecida pelo usuário.
+	// cfg contains the original configuration provided by the user.
 	cfg *config.ProjectConfig
 
-	// data são os dados derivados de cfg, prontos para uso nos templates.
+	// data is the data derived from cfg, ready for use in templates.
 	data *TemplateData
 
-	// spec é o layout de pastas resolvido para este projeto.
+	// spec is the resolved folder layout for this project.
 	spec *layout.Spec
 
-	// root é o caminho absoluto do diretório raiz do projeto a ser criado.
+	// root is the absolute path of the root directory of the project to be created.
 	root string
 
-	// verbose ativa a exibição de cada arquivo gerado durante o processo.
+	// verbose enables the display of each generated file during the process.
 	verbose bool
 
-	// steps acumula as linhas de log de cada etapa para exibição final.
+	// steps accumulates the log entries for each step for final display.
 	steps []stepResult
 }
 
-// stepResult representa o resultado de uma etapa de geração.
+// stepResult represents the result of a generation step.
 type stepResult struct {
-	label   string // descrição curta da etapa (ex: "Estrutura de pastas")
-	success bool   // true se completou sem erros
-	err     error  // erro ocorrido, nil se success == true
+	label   string // short step description (e.g. "Folder structure")
+	success bool   // true if completed without errors
+	err     error  // error that occurred, nil if success == true
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Construtor
+// Constructor
 // ─────────────────────────────────────────────────────────────────────────────
 
-// New cria um novo Generator a partir da ProjectConfig e da flag de verbose.
+// New creates a new Generator from the ProjectConfig and the verbose flag.
 //
-// Deriva automaticamente o TemplateData (formas do nome, flags booleanas, etc.),
-// resolve o layout de pastas e calcula o caminho raiz do projeto a ser gerado.
+// Automatically derives the TemplateData (name forms, boolean flags, etc.),
+// resolves the folder layout and calculates the root path of the project to be generated.
 func New(cfg *config.ProjectConfig, verbose bool) *Generator {
 	nameSnake := toSnakeCase(cfg.Name)
 	spec := layout.Resolve(cfg.Name, nameSnake, cfg.Layout, cfg.ProjectType)
@@ -192,24 +192,24 @@ func New(cfg *config.ProjectConfig, verbose bool) *Generator {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Generate — orquestrador principal
+// Generate — main orchestrator
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Generate executa todas as etapas de geração do projeto na ordem correta:
+// Generate executes all project generation steps in the correct order:
 //
-//  1. Cria a estrutura de pastas e arquivos fonte
-//  2. Gera os arquivos CMake (CMakeLists.txt, presets, helpers)
-//  3. Configura o gerenciador de pacotes (VCPKG ou FetchContent)
-//  4. Gera as configurações da IDE escolhida
-//  5. Gera .clangd e/ou .clang-format
-//  6. Inicializa o repositório Git e gera .gitignore / README
+//  1. Creates the folder structure and source files
+//  2. Generates the CMake files (CMakeLists.txt, presets, helpers)
+//  3. Configures the package manager (VCPKG or FetchContent)
+//  4. Generates the chosen IDE configurations
+//  5. Generates .clangd and/or .clang-format
+//  6. Initializes the Git repository and generates .gitignore / README
 //
-// Ao final, imprime um relatório de todas as etapas executadas.
-// Se qualquer etapa crítica falhar, a geração é interrompida imediatamente.
+// At the end, prints a report of all executed steps.
+// If any critical step fails, generation is immediately interrupted.
 func (g *Generator) Generate() error {
 	fmt.Printf("\n  Gerando projeto %q em %q...\n\n", g.cfg.Name, g.root)
 
-	// As etapas são executadas em sequência; cada uma registra seu resultado.
+	// Steps are executed in sequence; each one records its result.
 	pipeline := []struct {
 		label string
 		fn    func() error
@@ -241,16 +241,16 @@ func (g *Generator) Generate() error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Etapas do pipeline
+// Pipeline steps
 // ─────────────────────────────────────────────────────────────────────────────
 
-// runStructure cria a hierarquia de diretórios e os arquivos fonte C++ iniciais.
+// runStructure creates the directory hierarchy and initial C++ source files.
 func (g *Generator) runStructure() error {
 	return generateStructure(g.root, g.data, g.spec, g.verbose)
 }
 
-// runCMake gera todos os arquivos CMake do projeto:
-//   - CMakeLists.txt raiz
+// runCMake generates all CMake files for the project:
+//   - root CMakeLists.txt
 //   - src/CMakeLists.txt
 //   - tests/CMakeLists.txt
 //   - cmake/CompilerWarnings.cmake
@@ -259,8 +259,8 @@ func (g *Generator) runCMake() error {
 	return generateCMake(g.root, g.data, g.verbose)
 }
 
-// runPackages configura o gerenciador de pacotes escolhido.
-// Se nenhum foi selecionado (PkgNone), a etapa é pulada silenciosamente.
+// runPackages configures the chosen package manager.
+// If none was selected (PkgNone), the step is silently skipped.
 func (g *Generator) runPackages() error {
 	switch g.cfg.PackageManager {
 	case config.PkgVCPKG:
@@ -268,13 +268,13 @@ func (g *Generator) runPackages() error {
 	case config.PkgFetchContent:
 		return packages.GenerateFetchContent(g.root, g.verbose)
 	default:
-		// Nenhum gerenciador selecionado — nada a fazer.
+		// No manager selected — nothing to do.
 		return nil
 	}
 }
 
-// runIDE gera as configurações específicas da IDE escolhida.
-// Se IDENone foi selecionado, a etapa é pulada silenciosamente.
+// runIDE generates the configurations specific to the chosen IDE.
+// If IDENone was selected, the step is silently skipped.
 func (g *Generator) runIDE() error {
 	ideData := &ide.Data{
 		ProjectName:  g.data.Name,
@@ -297,25 +297,25 @@ func (g *Generator) runIDE() error {
 	}
 }
 
-// runClang gera os arquivos de configuração das ferramentas Clang:
-//   - .clangd  (se UseClangd == true)
-//   - .clang-format (se UseClangFormat == true)
+// runClang generates the configuration files for Clang tools:
+//   - .clangd  (if UseClangd == true)
+//   - .clang-format (if UseClangFormat == true)
 func (g *Generator) runClang() error {
 	return generateClang(g.root, g.data, g.verbose)
 }
 
-// runGit inicializa o repositório Git, gera .gitignore e README.md.
-// Se UseGit == false, apenas o README é criado (sem git init).
+// runGit initializes the Git repository, generates .gitignore and README.md.
+// If UseGit == false, only the README is created (without git init).
 func (g *Generator) runGit() error {
 	return generateGit(g.root, g.data, g.verbose)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Relatório de etapas
+// Step report
 // ─────────────────────────────────────────────────────────────────────────────
 
-// printStepReport imprime na saída padrão um resumo de todas as etapas
-// executadas, indicando sucesso ou falha com ícones visuais.
+// printStepReport prints to standard output a summary of all executed steps,
+// indicating success or failure with visual icons.
 func (g *Generator) printStepReport() {
 	checkOK := "  ✓"
 	checkFail := "  ✗"
@@ -331,35 +331,35 @@ func (g *Generator) printStepReport() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildTemplateData — derivação dos dados do template
+// buildTemplateData — template data derivation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// buildTemplateData converte uma ProjectConfig + layout.Spec em TemplateData,
-// calculando todas as formas derivadas do nome, flags booleanas e campos de
-// layout necessários para a lógica condicional dos templates.
+// buildTemplateData converts a ProjectConfig + layout.Spec into TemplateData,
+// calculating all derived name forms, boolean flags and layout fields
+// needed for the conditional logic in templates.
 func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateData {
 	return &TemplateData{
-		// Formas do nome
+		// Name forms
 		Name:       cfg.Name,
 		NameUpper:  toUpperSnake(cfg.Name),
 		NameSnake:  toSnakeCase(cfg.Name),
 		NamePascal: toPascalCase(cfg.Name),
 
-		// Metadados
+		// Metadata
 		Description: cfg.Description,
 		Author:      cfg.Author,
 		Version:     cfg.Version,
 		Year:        fmt.Sprintf("%d", time.Now().Year()),
 
-		// Técnicos
+		// Technical
 		Standard: string(cfg.Standard),
 
-		// Tipo de projeto
+		// Project type
 		IsExecutable: cfg.ProjectType == config.TypeExecutable,
 		IsStaticLib:  cfg.ProjectType == config.TypeStaticLib,
 		IsHeaderOnly: cfg.ProjectType == config.TypeHeaderOnly,
 
-		// Gerenciadores de pacotes
+		// Package managers
 		UseVCPKG:        cfg.PackageManager == config.PkgVCPKG,
 		UseFetchContent: cfg.PackageManager == config.PkgFetchContent,
 
@@ -369,12 +369,12 @@ func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateDa
 		IsNvim:   cfg.IDE == config.IDENvim,
 		IsZed:    cfg.IDE == config.IDEZed,
 
-		// Ferramentas opcionais
+		// Optional tools
 		UseGit:         cfg.UseGit,
 		UseClangd:      cfg.UseClangd,
 		UseClangFormat: cfg.UseClangFormat,
 
-		// Layout de pastas — derivado do layout.Spec resolvido
+		// Folder layout — derived from the resolved layout.Spec
 		Layout:                      string(spec.Kind),
 		LayoutNote:                  spec.LayoutNote,
 		LayoutCMakeSubdir:           spec.CMakeSubdir,
@@ -388,37 +388,37 @@ func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateDa
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Utilitários de transformação de nomes
+// Name transformation utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-// toUpperSnake converte um nome de projeto para UPPER_SNAKE_CASE.
+// toUpperSnake converts a project name to UPPER_SNAKE_CASE.
 //
-// Exemplos:
+// Examples:
 //
-//	"meu-projeto"  → "MEU_PROJETO"
+//	"my-project"   → "MY_PROJECT"
 //	"my.lib.core"  → "MY_LIB_CORE"
 func toUpperSnake(name string) string {
 	replacer := strings.NewReplacer("-", "_", ".", "_", " ", "_")
 	return strings.ToUpper(replacer.Replace(name))
 }
 
-// toSnakeCase converte um nome de projeto para snake_case.
+// toSnakeCase converts a project name to snake_case.
 //
-// Exemplos:
+// Examples:
 //
-//	"meu-projeto" → "meu_projeto"
-//	"My-Lib"      → "my_lib"
+//	"my-project" → "my_project"
+//	"My-Lib"     → "my_lib"
 func toSnakeCase(name string) string {
 	replacer := strings.NewReplacer("-", "_", ".", "_", " ", "_")
 	return strings.ToLower(replacer.Replace(name))
 }
 
-// toPascalCase converte um nome de projeto para PascalCase.
-// Delimitadores reconhecidos: hífen, underscore, ponto e espaço.
+// toPascalCase converts a project name to PascalCase.
+// Recognized delimiters: hyphen, underscore, dot and space.
 //
-// Exemplos:
+// Examples:
 //
-//	"meu-projeto"  → "MeuProjeto"
+//	"my-project"   → "MyProject"
 //	"my_lib_core"  → "MyLibCore"
 func toPascalCase(name string) string {
 	parts := strings.FieldsFunc(name, func(r rune) bool {
@@ -438,14 +438,14 @@ func toPascalCase(name string) string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Utilitários de I/O compartilhados entre os sub-geradores
+// I/O utilities shared among sub-generators
 // ─────────────────────────────────────────────────────────────────────────────
 
-// writeFile cria (ou sobrescreve) um arquivo no caminho dado com o conteúdo
-// fornecido. Cria todos os diretórios pai necessários automaticamente.
-// Se verbose for true, imprime o caminho do arquivo criado.
+// writeFile creates (or overwrites) a file at the given path with the provided
+// content. Automatically creates all necessary parent directories.
+// If verbose is true, prints the path of the created file.
 func writeFile(path, content string, verbose bool) error {
-	// Garante que o diretório pai existe
+	// Ensures the parent directory exists
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("criar diretório %q: %w", filepath.Dir(path), err)
 	}
@@ -461,9 +461,9 @@ func writeFile(path, content string, verbose bool) error {
 	return nil
 }
 
-// renderTemplate processa um template Go (text/template) com os dados fornecidos
-// e retorna o resultado como string. Retorna erro se o template for inválido
-// ou se os dados não satisfizerem os campos referenciados.
+// renderTemplate processes a Go template (text/template) with the provided data
+// and returns the result as a string. Returns an error if the template is invalid
+// or if the data does not satisfy the referenced fields.
 func renderTemplate(name, tmpl string, data any) (string, error) {
 	t, err := template.New(name).Parse(tmpl)
 	if err != nil {
@@ -478,8 +478,8 @@ func renderTemplate(name, tmpl string, data any) (string, error) {
 	return sb.String(), nil
 }
 
-// writeTemplate é uma combinação de renderTemplate + writeFile:
-// processa o template e grava o resultado no arquivo indicado.
+// writeTemplate is a combination of renderTemplate + writeFile:
+// processes the template and writes the result to the indicated file.
 func writeTemplate(path, name, tmpl string, data any, verbose bool) error {
 	content, err := renderTemplate(name, tmpl, data)
 	if err != nil {

@@ -1,0 +1,134 @@
+# ==============================================================================
+# cliff.toml — cpp-gen
+# ==============================================================================
+# git-cliff configuration for automatic CHANGELOG.md generation
+# from commits following the Conventional Commits convention.
+#
+# Documentation: https://git-cliff.org/docs/configuration
+#
+# Usage:
+#   git-cliff --output CHANGELOG.md          → generates full changelog
+#   git-cliff --latest --output CHANGELOG.md → updates only the latest release
+#   make changelog                           → shortcut via Makefile
+# ==============================================================================
+
+[changelog]
+# CHANGELOG header template (rendered once at the top of the file)
+header = """
+# Changelog
+
+Todas as mudanças notáveis neste projeto estão documentadas aqui.
+
+O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
+e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+
+"""
+
+# Template for each release section (rendered per tag)
+# Uses the Tera template language (similar to Jinja2)
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%d/%m/%Y") }}
+{% else %}\
+## [Não lançado]
+{% endif %}\
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+{{ commit.message | upper_first }}\
+{% if commit.breaking %} ⚠️  **BREAKING**{% endif %} \
+([`{{ commit.id | truncate(length=7, end="") }}`]({{ commit.id }}))\
+{% endfor %}
+{% endfor %}\n
+"""
+
+# CHANGELOG footer (rendered once at the end)
+footer = """
+---
+*Gerado automaticamente por [git-cliff](https://git-cliff.org)*
+"""
+
+# Removes extra whitespace from the output
+trim = true
+
+# ==============================================================================
+# Commit parser configuration
+# ==============================================================================
+
+[git]
+# Interprets commit messages as Conventional Commits
+conventional_commits = true
+
+# Ignores commits that do not follow the Conventional Commits convention
+filter_unconventional = true
+
+# Splits the commit body into separate paragraphs
+split_commits = false
+
+# Sorts commits within each group by date
+sort_commits = "oldest"
+
+# Filters tags that do not follow SemVer (e.g.: "latest", "stable")
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+
+# Ignores pre-release tags in the standard changelog
+# (uncomment to include alphas/betas)
+# skip_tags = "v.+-(alpha|beta|rc).*"
+
+# Processes issue and PR links in commit messages
+link_parsers = [
+    { pattern = "#(\\d+)", href = "https://github.com/SEU_USER/cpp-gen/issues/$1", text = "#$1" },
+    { pattern = "RFC(\\d+)", href = "https://tools.ietf.org/html/rfc$1", text = "RFC$1" },
+]
+
+# Commit filters — excludes maintenance commits from the CHANGELOG
+commit_filters = [
+    { field = "message", pattern = "^(chore|ci|style|test)\\(", negate = false, group = "🔧 Manutenção" },
+    { field = "message", pattern = "Merge (pull request|branch)", negate = true },
+    { field = "message", pattern = "^wip:", negate = true },
+]
+
+# Pre-processing of commit messages before grouping
+commit_preprocessors = [
+    # Removes the type and scope prefix to display only the description
+    # e.g.: "feat(tui): add layout selector" → "add layout selector"
+    { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/SEU_USER/cpp-gen/issues/${1}))" },
+]
+
+# ==============================================================================
+# Conventional Commits type → CHANGELOG group mapping
+# ==============================================================================
+
+commit_parsers = [
+    # Breaking changes (type with ! or BREAKING CHANGE in footer)
+    { message = "^.*!\\(.*\\):", group = "💥 Breaking Changes" },
+    { body    = ".*BREAKING CHANGE.*", group = "💥 Breaking Changes" },
+
+    # New features
+    { message = "^feat", group = "⚡ Novas Funcionalidades" },
+
+    # Bug fixes
+    { message = "^fix", group = "🐛 Correções" },
+
+    # Performance improvements
+    { message = "^perf", group = "🚀 Performance" },
+
+    # Refactorings without behavior change
+    { message = "^refactor", group = "♻️  Refatorações" },
+
+    # Documentation
+    { message = "^docs", group = "📚 Documentação" },
+
+    # Tests
+    { message = "^test", group = "🧪 Testes", skip = true },
+
+    # CI/CD
+    { message = "^ci", group = "👷 CI/CD", skip = true },
+
+    # Chores and maintenance — excluded from the public CHANGELOG
+    { message = "^chore", skip = true },
+    { message = "^style", skip = true },
+    { message = "^build", skip = true },
+]

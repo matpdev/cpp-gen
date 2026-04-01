@@ -1,136 +1,136 @@
-// Package tui contém todos os componentes de interface de usuário do terminal
-// utilizados pelo cpp-gen, incluindo formulários interativos e estilos visuais.
+// Package tui contains all terminal user interface components
+// used by cpp-gen, including interactive forms and visual styles.
 package tui
 
 import "github.com/charmbracelet/lipgloss"
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Paleta de cores
+// Color palette
 // ─────────────────────────────────────────────────────────────────────────────
 
 const (
-	colorPrimary   = lipgloss.Color("#7C3AED") // Roxo principal
-	colorSecondary = lipgloss.Color("#A78BFA") // Roxo claro
-	colorAccent    = lipgloss.Color("#06B6D4") // Ciano
-	colorSuccess   = lipgloss.Color("#10B981") // Verde
-	colorWarning   = lipgloss.Color("#F59E0B") // Amarelo
-	colorError     = lipgloss.Color("#EF4444") // Vermelho
-	colorMuted     = lipgloss.Color("#6B7280") // Cinza
-	colorText      = lipgloss.Color("#F9FAFB") // Branco suave
-	colorBorder    = lipgloss.Color("#374151") // Cinza escuro
+	colorPrimary   = lipgloss.Color("#7C3AED") // Primary purple
+	colorSecondary = lipgloss.Color("#A78BFA") // Light purple
+	colorAccent    = lipgloss.Color("#06B6D4") // Cyan
+	colorSuccess   = lipgloss.Color("#10B981") // Green
+	colorWarning   = lipgloss.Color("#F59E0B") // Yellow
+	colorError     = lipgloss.Color("#EF4444") // Red
+	colorMuted     = lipgloss.Color("#6B7280") // Gray
+	colorText      = lipgloss.Color("#F9FAFB") // Soft white
+	colorBorder    = lipgloss.Color("#374151") // Dark gray
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estilos de texto
+// Text styles
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TitleStyle é o estilo usado no título principal / banner da aplicação.
+// TitleStyle is the style used in the main title / application banner.
 var TitleStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(colorPrimary)
 
-// SubtitleStyle é o estilo usado em subtítulos e descrições do banner.
+// SubtitleStyle is the style used in subtitles and banner descriptions.
 var SubtitleStyle = lipgloss.NewStyle().
 	Foreground(colorSecondary)
 
-// SectionStyle é o estilo para cabeçalhos de seção dentro de listas.
+// SectionStyle is the style for section headers within lists.
 var SectionStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(colorAccent)
 
-// MutedStyle é usado para textos secundários e informações de baixa prioridade.
+// MutedStyle is used for secondary text and low-priority information.
 var MutedStyle = lipgloss.NewStyle().
 	Foreground(colorMuted)
 
-// BoldStyle aplica negrito ao texto sem alterar a cor.
+// BoldStyle applies bold to text without changing the color.
 var BoldStyle = lipgloss.NewStyle().
 	Bold(true)
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estilos de status / feedback
+// Status / feedback styles
 // ─────────────────────────────────────────────────────────────────────────────
 
-// SuccessStyle é usado para mensagens de sucesso (ex: "✓ Projeto criado").
+// SuccessStyle is used for success messages (e.g. "✓ Project created").
 var SuccessStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(colorSuccess)
 
-// WarningStyle é usado para mensagens de aviso (ex: "⚠ Git não encontrado").
+// WarningStyle is used for warning messages (e.g. "⚠ Git not found").
 var WarningStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(colorWarning)
 
-// ErrorStyle é usado para mensagens de erro crítico.
+// ErrorStyle is used for critical error messages.
 var ErrorStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(colorError)
 
-// InfoStyle é usado para mensagens informativas neutras.
+// InfoStyle is used for neutral informational messages.
 var InfoStyle = lipgloss.NewStyle().
 	Foreground(colorAccent)
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estilos de prefixo de linha (ícones de status)
+// Line prefix styles (status icons)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// CheckMark retorna o símbolo de sucesso estilizado.
+// CheckMark returns the stylized success symbol.
 func CheckMark() string {
 	return SuccessStyle.Render("✓")
 }
 
-// CrossMark retorna o símbolo de erro estilizado.
+// CrossMark returns the stylized error symbol.
 func CrossMark() string {
 	return ErrorStyle.Render("✗")
 }
 
-// Arrow retorna uma seta estilizada usada como prefixo de etapas.
+// Arrow returns a stylized arrow used as a step prefix.
 func Arrow() string {
 	return InfoStyle.Render("→")
 }
 
-// Bullet retorna um marcador estilizado para listas.
+// Bullet returns a stylized bullet for lists.
 func Bullet() string {
 	return MutedStyle.Render("•")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Estilos de layout / contêiner
+// Layout / container styles
 // ─────────────────────────────────────────────────────────────────────────────
 
-// BoxStyle é o estilo para caixas delimitadas com borda arredondada,
-// usado para resumos e painéis de informação.
+// BoxStyle is the style for bordered boxes with rounded corners,
+// used for summaries and information panels.
 var BoxStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
 	BorderForeground(colorBorder).
 	Padding(1, 2).
 	MarginTop(1)
 
-// SummaryHeaderStyle é o estilo para o cabeçalho do bloco de resumo final.
+// SummaryHeaderStyle is the style for the final summary block header.
 var SummaryHeaderStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(colorPrimary).
 	MarginBottom(1)
 
-// KeyStyle é o estilo para chaves em pares chave: valor no resumo.
+// KeyStyle is the style for keys in key:value pairs in the summary.
 var KeyStyle = lipgloss.NewStyle().
 	Foreground(colorSecondary).
 	Width(20)
 
-// ValueStyle é o estilo para valores em pares chave: valor no resumo.
+// ValueStyle is the style for values in key:value pairs in the summary.
 var ValueStyle = lipgloss.NewStyle().
 	Foreground(colorText)
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Funções de formatação de alto nível
+// High-level formatting functions
 // ─────────────────────────────────────────────────────────────────────────────
 
-// FormatStep formata uma linha de progresso de etapa de geração,
-// exibindo um ícone de sucesso/erro e a descrição da etapa.
+// FormatStep formats a generation step progress line,
+// displaying a success/error icon and the step description.
 //
-// Exemplo:
+// Example:
 //
-//	✓ Estrutura de pastas criada
-//	✗ Falha ao inicializar Git
+//	✓ Folder structure created
+//	✗ Failed to initialize Git
 func FormatStep(success bool, message string) string {
 	if success {
 		return CheckMark() + "  " + message
@@ -138,26 +138,26 @@ func FormatStep(success bool, message string) string {
 	return CrossMark() + "  " + ErrorStyle.Render(message)
 }
 
-// FormatKeyValue formata um par chave/valor alinhado para o resumo do projeto.
+// FormatKeyValue formats an aligned key/value pair for the project summary.
 //
-// Exemplo:
+// Example:
 //
-//	Nome                 meu-projeto
-//	Padrão C++           C++20
+//	Name                 my-project
+//	C++ Standard         C++20
 func FormatKeyValue(key, value string) string {
 	return KeyStyle.Render(key) + ValueStyle.Render(value)
 }
 
-// FormatSection formata um cabeçalho de seção com separador visual.
+// FormatSection formats a section header with a visual separator.
 //
-// Exemplo:
+// Example:
 //
-//	── Configurações ─────────────────────────
+//	── Settings ─────────────────────────
 func FormatSection(title string) string {
 	return SectionStyle.Render("── " + title + " " + repeatRune('─', 35-len(title)))
 }
 
-// repeatRune retorna uma string com o rune repetido n vezes (mínimo 0).
+// repeatRune returns a string with the rune repeated n times (minimum 0).
 func repeatRune(r rune, n int) string {
 	if n <= 0 {
 		return ""

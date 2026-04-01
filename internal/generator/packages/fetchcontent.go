@@ -1,5 +1,5 @@
-// Package packages contém os geradores de configuração de gerenciadores
-// de pacotes C++ suportados pelo cpp-gen.
+// Package packages contains the configuration generators for package
+// managers for C++ supported by cpp-gen.
 package packages
 
 import (
@@ -8,38 +8,38 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GenerateFetchContent — ponto de entrada público
+// GenerateFetchContent — public entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-// GenerateFetchContent gera os arquivos necessários para gerenciar dependências
-// C++ usando o módulo FetchContent nativo do CMake (CMake 3.11+).
+// GenerateFetchContent generates the necessary files to manage dependencies
+// for C++ using CMake's native FetchContent module (CMake 3.11+).
 //
-// FetchContent é a abordagem "sem ferramentas externas" para dependências C++:
-// o CMake baixa, configura e compila as dependências automaticamente durante
-// o configure do projeto, sem necessidade de instalar nada previamente.
+// FetchContent is the "no external tools" approach for C++ dependencies:
+// CMake downloads, configures and compiles dependencies automatically during
+// project configure, without needing to install anything beforehand.
 //
-// Vantagens:
-//   - Sem dependências externas (apenas CMake)
-//   - Funciona em qualquer ambiente de CI/CD sem configuração prévia
-//   - Controle total sobre as versões via tags/commits Git
-//   - As dependências são compiladas junto com o projeto (mesmo compilador/flags)
+// Advantages:
+//   - No external dependencies (CMake only)
+//   - Works in any CI/CD environment without prior configuration
+//   - Full version control via Git tags/commits
+//   - Dependencies are compiled alongside the project (same compiler/flags)
 //
-// Desvantagens vs VCPKG:
-//   - Recompila as dependências a cada `cmake --build` limpo
-//   - Sem cache global entre projetos (cada projeto compila suas deps)
-//   - Gerenciamento de versões manual (sem arquivo de lock automático)
+// Disadvantages vs VCPKG:
+//   - Recompiles dependencies on each clean `cmake --build`
+//   - No global cache between projects (each project compiles its deps)
+//   - Manual version management (no automatic lock file)
 //
-// Arquivos gerados:
+// Generated files:
 //
-//   - cmake/Dependencies.cmake — declaração de todas as dependências via
-//     FetchContent_Declare() e FetchContent_MakeAvailable()
+//   - cmake/Dependencies.cmake — declaration of all dependencies via
+//     FetchContent_Declare() and FetchContent_MakeAvailable()
 //
-// Uso no CMakeLists.txt (já configurado pelo cmake.go):
+// Usage in CMakeLists.txt (already configured by cmake.go):
 //
 //	include(FetchContent)
 //	include(cmake/Dependencies.cmake)
 //
-// Referência: https://cmake.org/cmake/help/latest/module/FetchContent.html
+// Reference: https://cmake.org/cmake/help/latest/module/FetchContent.html
 func GenerateFetchContent(root string, verbose bool) error {
 	depsPath := filepath.Join(root, "cmake", "Dependencies.cmake")
 
@@ -54,13 +54,13 @@ func GenerateFetchContent(root string, verbose bool) error {
 // Template: cmake/Dependencies.cmake
 // ─────────────────────────────────────────────────────────────────────────────
 
-// tmplFetchContentDependencies é o conteúdo do arquivo cmake/Dependencies.cmake.
+// tmplFetchContentDependencies is the content of the cmake/Dependencies.cmake file.
 //
-// Este arquivo centraliza TODAS as dependências externas do projeto declaradas
-// via FetchContent. A separação em um arquivo dedicado mantém o CMakeLists.txt
-// raiz limpo e facilita o gerenciamento de dependências.
+// This file centralizes ALL external project dependencies declared
+// via FetchContent. Separating them into a dedicated file keeps the CMakeLists.txt
+// root clean and facilitates dependency management.
 //
-// Padrão recomendado para cada dependência:
+// Recommended pattern for each dependency:
 //
 //	FetchContent_Declare(
 //	    <nome>                         # identificador único (lowercase)
@@ -70,15 +70,15 @@ func GenerateFetchContent(root string, verbose bool) error {
 //	)
 //	FetchContent_MakeAvailable(<nome>) # baixa, configura e disponibiliza o target
 //
-// Após FetchContent_MakeAvailable(), use o target no seu CMakeLists.txt:
+// After FetchContent_MakeAvailable(), use the target in your CMakeLists.txt:
 //
 //	target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 //
-// Para velocidade em CI/CD, considere usar CPM.cmake como wrapper do FetchContent:
+// For speed in CI/CD, consider using CPM.cmake as a FetchContent wrapper:
 //
 //	https://github.com/cpm-cmake/CPM.cmake
 //
-// Referência: https://cmake.org/cmake/help/latest/module/FetchContent.html
+// Reference: https://cmake.org/cmake/help/latest/module/FetchContent.html
 const tmplFetchContentDependencies = `# =============================================================================
 # cmake/Dependencies.cmake — Dependências externas via FetchContent
 # =============================================================================

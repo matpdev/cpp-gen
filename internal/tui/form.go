@@ -1,5 +1,5 @@
-// Package tui contém todos os componentes de interface de usuário do terminal
-// utilizados pelo cpp-gen, incluindo formulários interativos e estilos visuais.
+// Package tui contains all terminal user interface components
+// used by cpp-gen, including interactive forms and visual styles.
 package tui
 
 import (
@@ -19,18 +19,18 @@ import (
 // RunForm
 // ─────────────────────────────────────────────────────────────────────────────
 
-// RunForm exibe o formulário interativo TUI e retorna a ProjectConfig
-// preenchida pelo usuário. Se o usuário cancelar (Esc / Ctrl+C),
-// retorna um erro com a mensagem "user aborted".
+// RunForm displays the interactive TUI form and returns the ProjectConfig
+// filled in by the user. If the user cancels (Esc / Ctrl+C),
+// it returns an error with the message "user aborted".
 //
-// initialName é pré-preenchido no campo de nome quando fornecido via argumento
-// posicional na linha de comando (ex: cpp-gen new meu-projeto).
+// initialName is pre-filled in the name field when provided via positional
+// argument on the command line (e.g. cpp-gen new my-project).
 func RunForm(initialName string) (*config.ProjectConfig, error) {
 	cfg := config.Default()
 	cfg.Name = initialName
 
-	// Variáveis intermediárias de string para os campos de seleção,
-	// pois huh.NewSelect requer *string enquanto config usa tipos customizados.
+	// Intermediate string variables for selection fields,
+	// since huh.NewSelect requires *string while config uses custom types.
 	var (
 		standard    = string(cfg.Standard)
 		projectType = string(cfg.ProjectType)
@@ -39,7 +39,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		ide         = string(cfg.IDE)
 	)
 
-	// ── Grupo 1: Identidade do Projeto ────────────────────────────────────────
+	// ── Group 1: Project Identity ─────────────────────────────────────────────
 	groupIdentity := huh.NewGroup(
 		huh.NewNote().
 			Title("⚡ cpp-gen").
@@ -72,7 +72,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Validate(validateVersion),
 	)
 
-	// ── Grupo 2: Configurações Técnicas C++ ───────────────────────────────────
+	// ── Group 2: C++ Technical Settings ──────────────────────────────────────
 	groupTechnical := huh.NewGroup(
 		huh.NewNote().
 			Title("Configurações C++").
@@ -99,7 +99,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&projectType),
 	)
 
-	// ── Grupo 3: Layout de Pastas ─────────────────────────────────────────────
+	// ── Group 3: Folder Layout ────────────────────────────────────────────────
 	groupLayout := huh.NewGroup(
 		huh.NewNote().
 			Title("Layout de Pastas").
@@ -135,7 +135,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&layout),
 	)
 
-	// ── Grupo 4: Gerenciador de Pacotes ───────────────────────────────────────
+	// ── Group 4: Package Manager ──────────────────────────────────────────────
 	groupPackages := huh.NewGroup(
 		huh.NewNote().
 			Title("Gerenciador de Pacotes").
@@ -152,7 +152,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&pkgManager),
 	)
 
-	// ── Grupo 5: Ambiente de Desenvolvimento ──────────────────────────────────
+	// ── Group 5: Development Environment ─────────────────────────────────────
 	groupIDE := huh.NewGroup(
 		huh.NewNote().
 			Title("IDE e Ferramentas").
@@ -192,7 +192,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&cfg.UseClangFormat),
 	)
 
-	// ── Construção e execução do formulário ───────────────────────────────────
+	// ── Form construction and execution ──────────────────────────────────────
 	form := huh.NewForm(
 		groupIdentity,
 		groupTechnical,
@@ -204,14 +204,14 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		WithWidth(72)
 
 	if err := form.Run(); err != nil {
-		// huh retorna este erro quando o usuário pressiona Esc ou Ctrl+C
+		// huh returns this error when the user presses Esc or Ctrl+C
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil, errors.New("user aborted")
 		}
 		return nil, fmt.Errorf("erro no formulário: %w", err)
 	}
 
-	// Converte as variáveis de string de volta para os tipos customizados
+	// Converts string variables back to custom types
 	cfg.Standard = config.CppStandard(standard)
 	cfg.ProjectType = config.ProjectType(projectType)
 	cfg.Layout = config.FolderLayout(layout)
@@ -222,20 +222,20 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Validadores de campo
+// Field validators
 // ─────────────────────────────────────────────────────────────────────────────
 
-// reProjectName define os caracteres válidos para nomes de projeto:
-// letras minúsculas, dígitos e hífens, com início e fim alfanuméricos.
+// reProjectName defines the valid characters for project names:
+// lowercase letters, digits and hyphens, with alphanumeric start and end.
 var reProjectName = regexp.MustCompile(`^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]$`)
 
-// validateProjectName valida o nome do projeto inserido pelo usuário.
-// Regras:
-//   - Não pode ser vazio
-//   - Deve ter pelo menos 2 caracteres
-//   - Apenas letras minúsculas, dígitos e hífens
-//   - Não pode começar ou terminar com hífen
-//   - Não pode conter espaços ou caracteres especiais
+// validateProjectName validates the project name entered by the user.
+// Rules:
+//   - Cannot be empty
+//   - Must have at least 2 characters
+//   - Only lowercase letters, digits and hyphens
+//   - Cannot start or end with a hyphen
+//   - Cannot contain spaces or special characters
 func validateProjectName(name string) error {
 	name = strings.TrimSpace(name)
 
@@ -263,11 +263,11 @@ func validateProjectName(name string) error {
 	return nil
 }
 
-// reVersion valida o formato SemVer básico: MAJOR.MINOR.PATCH (todos numéricos).
+// reVersion validates the basic SemVer format: MAJOR.MINOR.PATCH (all numeric).
 var reVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
-// validateVersion valida o campo de versão do projeto.
-// Aceita o formato MAJOR.MINOR.PATCH (ex: "1.0.0", "0.3.12").
+// validateVersion validates the project version field.
+// Accepts the MAJOR.MINOR.PATCH format (e.g. "1.0.0", "0.3.12").
 func validateVersion(v string) error {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -280,38 +280,38 @@ func validateVersion(v string) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tema customizado
+// Custom theme
 // ─────────────────────────────────────────────────────────────────────────────
 
-// buildTheme cria um tema huh customizado baseado na paleta de cores do cpp-gen.
-// Mantém o visual consistente com os estilos lipgloss definidos em styles.go.
+// buildTheme creates a custom huh theme based on the cpp-gen color palette.
+// Keeps the visual consistent with the lipgloss styles defined in styles.go.
 func buildTheme() *huh.Theme {
 	theme := huh.ThemeCharm()
 
-	// Cabeçalho de grupo / nota
+	// Group header / note
 	theme.Focused.Title = TitleStyle.Copy()
 	theme.Focused.Description = MutedStyle.Copy()
 
-	// Campo selecionado / ativo
+	// Selected / active field
 	theme.Focused.SelectedOption = lipglossColor(colorAccent)
 	theme.Focused.UnselectedOption = MutedStyle.Copy()
 
-	// Cursor de seleção
+	// Selection cursor
 	theme.Focused.SelectSelector = InfoStyle.Copy()
 
-	// Botões de confirmação
+	// Confirmation buttons
 	theme.Focused.FocusedButton = lipglossColor(colorSuccess)
 	theme.Focused.BlurredButton = MutedStyle.Copy()
 
 	return theme
 }
 
-// lipglossColor cria um estilo lipgloss simples apenas com a cor de foreground,
-// compatível com o tipo esperado pelos campos do tema huh.
+// lipglossColor creates a simple lipgloss style with only the foreground color,
+// compatible with the type expected by huh theme fields.
 func lipglossColor(c lipglossColorType) lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(c)
 }
 
-// lipglossColorType é um alias interno para lipgloss.Color, tornando a assinatura
-// de lipglossColor mais explícita e evitando imports circulares em testes.
+// lipglossColorType is an internal alias for lipgloss.Color, making the
+// lipglossColor signature more explicit and avoiding circular imports in tests.
 type lipglossColorType = lipgloss.Color
