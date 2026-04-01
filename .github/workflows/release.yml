@@ -67,7 +67,7 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --skip=aurs
+          args: release --clean --skip=aur
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
