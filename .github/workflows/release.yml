@@ -10,6 +10,8 @@
 #   goreleaser → binaries + archives + GitHub Release   (always)
 #       ↓
 #   Publish to AUR                                      (only if AUR_KEY is set)
+#       ↓
+#   Publish to Homebrew tap                             (only if HOMEBREW_TAP_GITHUB_TOKEN is set)
 #
 # ── AUR_KEY secret ────────────────────────────────────────────────────────────
 # Store the raw content of your AUR SSH private key as the AUR_KEY secret.
@@ -19,6 +21,16 @@
 #
 # Then go to: Settings → Secrets and variables → Actions → AUR_KEY → Update
 # and paste the full content of ~/.ssh/aur (including BEGIN/END lines).
+#
+# ── HOMEBREW_TAP_GITHUB_TOKEN secret ──────────────────────────────────────────
+# A GitHub Personal Access Token (classic or fine-grained) with write access
+# to the matpdev/homebrew-tap repository.
+#
+# Required scopes (classic PAT): repo
+# Fine-grained PAT: Contents → Read and Write on the homebrew-tap repo.
+#
+# Create at: https://github.com/settings/tokens
+# Then add as: Settings → Secrets and variables → Actions → HOMEBREW_TAP_GITHUB_TOKEN
 # ==============================================================================
 
 name: Release
@@ -26,7 +38,7 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"   # v1.2.3
+      - "v[0-9]+.[0-9]+.[0-9]+" # v1.2.3
       - "v[0-9]+.[0-9]+.[0-9]+-*" # v1.2.3-beta.1  (pre-release)
 
 permissions:
@@ -60,15 +72,28 @@ jobs:
       - name: Test
         run: go test -race ./...
 
-      # ── Goreleaser (GitHub Release only — AUR handled below) ─────────────────
+      - name: Set goreleaser skip flags
+        id: goreleaser_skip
+        env:
+          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          SKIP="aur"
+          if [ -z "$HOMEBREW_TOKEN" ]; then
+            SKIP="${SKIP},brew"
+            echo "::warning title=HOMEBREW_TAP_GITHUB_TOKEN ausente::Publicação no Homebrew ignorada."
+          fi
+          echo "flags=${SKIP}" >> "$GITHUB_OUTPUT"
+
+      # ── Goreleaser (GitHub Release + Homebrew if token set — AUR handled below) ──
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --skip=aur
+          args: release --clean --skip=${{ steps.goreleaser_skip.outputs.flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
       # ── AUR publish ───────────────────────────────────────────────────────────
       # Checks whether AUR_KEY is set and writes it to disk via Python,

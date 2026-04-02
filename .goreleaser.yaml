@@ -40,6 +40,7 @@ builds:
     goarch:
       - amd64
       - "386"
+      - arm64
 
     # darwin/386 is not supported since Go 1.15 / macOS Catalina
     ignore:
@@ -92,6 +93,43 @@ checksum:
 #   5. Generates .SRCINFO inline
 #   6. Commits and pushes to branch master
 
+# ── Homebrew ──────────────────────────────────────────────────────────────────
+# Homebrew publishing is handled natively by goreleaser via the `brews` block
+# below. After a successful release goreleaser opens a commit on the
+# matpdev/homebrew-tap repository updating the formula automatically.
+#
+# The HOMEBREW_TAP_GITHUB_TOKEN secret (a fine-grained PAT with Contents:write
+# permission on the tap repo) controls whether publishing happens:
+#   • Token present  → goreleaser pushes the updated formula.
+#   • Token absent   → goreleaser skips the brew step without failing the run.
+#
+# The release.yml workflow exports the secret as an environment variable so
+# goreleaser can interpolate it via {{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}.
+
+brews:
+  - name: cpp-gen
+
+    repository:
+      owner: matpdev
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+
+    homepage: "https://github.com/matpdev/cpp-gen"
+    description: "Modern C++ project generator with CMake, package managers, IDE configurations and development tools"
+    license: "MIT"
+
+    install: |
+      bin.install "cpp-gen"
+
+    test: |
+      system "#{bin}/cpp-gen", "--version"
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 # Generated from commit messages following the Conventional Commits convention.
@@ -149,6 +187,11 @@ release:
     ---
 
     ### Instalação
+
+    **macOS / Linux — Homebrew**
+    ```sh
+    brew install matpdev/tap/cpp-gen
+    ```
 
     **Arch Linux (AUR)**
     ```sh

@@ -47,6 +47,13 @@ yay -S cpp-gen-bin
 paru -S cpp-gen-bin
 ```
 
+### macOS / Linux — Homebrew
+
+```bash
+brew tap matpdev/tap
+brew install cpp-gen
+```
+
 ### Binary (Linux / macOS)
 
 Download the latest pre-compiled binary from [GitHub Releases](https://github.com/matpdev/cpp-gen/releases/latest):
