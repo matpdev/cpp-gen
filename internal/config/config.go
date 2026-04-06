@@ -278,6 +278,97 @@ func (s CppStandard) Label() string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ClangFormatStyle represents the base style for .clang-format generation.
+// When set to ClangFormatLLVM, a fully customized template with modern
+// overrides is generated. For all other styles, a minimal file with just
+// BasedOnStyle and Standard is generated, allowing the user to build on top.
+type ClangFormatStyle string
+
+const (
+	// ClangFormatLLVM generates a detailed .clang-format based on LLVM with
+	// modern adjustments: 4-space indent, Allman braces, 100-col limit, etc.
+	// This is the default and matches the historical behaviour of cpp-gen.
+	ClangFormatLLVM ClangFormatStyle = "LLVM"
+
+	// ClangFormatGoogle uses the Google C++ Style Guide as-is (2-space indent,
+	// K&R braces, 80-col limit).
+	ClangFormatGoogle ClangFormatStyle = "Google"
+
+	// ClangFormatChromium is based on Google style, used by the Chromium project.
+	ClangFormatChromium ClangFormatStyle = "Chromium"
+
+	// ClangFormatMozilla uses the Mozilla coding style.
+	ClangFormatMozilla ClangFormatStyle = "Mozilla"
+
+	// ClangFormatWebKit uses the WebKit coding style (4-space indent, K&R braces).
+	ClangFormatWebKit ClangFormatStyle = "WebKit"
+
+	// ClangFormatMicrosoft uses the Microsoft C++ coding style.
+	ClangFormatMicrosoft ClangFormatStyle = "Microsoft"
+
+	// ClangFormatGNU uses the GNU coding standards.
+	ClangFormatGNU ClangFormatStyle = "GNU"
+)
+
+// ClangFormatStyleOptions returns all available styles in suggested order.
+func ClangFormatStyleOptions() []ClangFormatStyle {
+	return []ClangFormatStyle{
+		ClangFormatLLVM,
+		ClangFormatGoogle,
+		ClangFormatChromium,
+		ClangFormatMozilla,
+		ClangFormatWebKit,
+		ClangFormatMicrosoft,
+		ClangFormatGNU,
+	}
+}
+
+// Label returns the user-friendly name for display in the TUI.
+func (s ClangFormatStyle) Label() string {
+	switch s {
+	case ClangFormatLLVM:
+		return "LLVM        — personalizado  (4 espaços, Allman, 100 cols)"
+	case ClangFormatGoogle:
+		return "Google      — Google C++ Style Guide  (2 espaços, 80 cols)"
+	case ClangFormatChromium:
+		return "Chromium    — baseado em Google  (Chromium project)"
+	case ClangFormatMozilla:
+		return "Mozilla     — Mozilla Coding Style"
+	case ClangFormatWebKit:
+		return "WebKit      — WebKit Coding Style  (4 espaços)"
+	case ClangFormatMicrosoft:
+		return "Microsoft   — Microsoft C++ Style"
+	case ClangFormatGNU:
+		return "GNU         — GNU Coding Standards"
+	default:
+		return string(s)
+	}
+}
+
+// Description returns a short explanation shown as a hint in the TUI.
+func (s ClangFormatStyle) Description() string {
+	switch s {
+	case ClangFormatLLVM:
+		return "Arquivo detalhado com todas as opções documentadas. Fácil de ajustar."
+	case ClangFormatGoogle:
+		return "Estilo oficial do Google. Amplamente adotado em projetos open source."
+	case ClangFormatChromium:
+		return "Derivado do Google Style. Usado no projeto Chromium e projetos relacionados."
+	case ClangFormatMozilla:
+		return "Estilo oficial da Mozilla Foundation."
+	case ClangFormatWebKit:
+		return "Estilo usado pelo motor de layout WebKit (Safari, Qt WebEngine)."
+	case ClangFormatMicrosoft:
+		return "Estilo padrão de projetos Microsoft (Visual Studio)."
+	case ClangFormatGNU:
+		return "Padrões de codificação GNU. Comum em projetos do ecossistema GNU/Linux."
+	default:
+		return ""
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main configuration structure
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -330,6 +421,11 @@ type ProjectConfig struct {
 	// UseClangFormat indicates whether the .clang-format file should be generated.
 	UseClangFormat bool
 
+	// ClangFormatStyle defines the base style used for .clang-format generation.
+	// When set to ClangFormatLLVM, a fully customized template is generated.
+	// For all other values, a minimal BasedOnStyle file is generated.
+	ClangFormatStyle ClangFormatStyle
+
 	// ── Output configuration ──────────────────────────────────────────────────
 
 	// OutputDir is the base directory where the project will be created.
@@ -375,15 +471,16 @@ func (c *ProjectConfig) Validate() []string {
 // useful as a starting point before applying the user's choices.
 func Default() *ProjectConfig {
 	return &ProjectConfig{
-		Version:        "1.0.0",
-		Standard:       Cpp20,
-		ProjectType:    TypeExecutable,
-		Layout:         LayoutSeparate,
-		PackageManager: PkgNone,
-		IDE:            IDENone,
-		UseGit:         true,
-		UseClangd:      true,
-		UseClangFormat: true,
-		OutputDir:      ".",
+		Version:          "1.0.0",
+		Standard:         Cpp20,
+		ProjectType:      TypeExecutable,
+		Layout:           LayoutSeparate,
+		PackageManager:   PkgNone,
+		IDE:              IDENone,
+		UseGit:           true,
+		UseClangd:        true,
+		UseClangFormat:   true,
+		ClangFormatStyle: ClangFormatLLVM,
+		OutputDir:        ".",
 	}
 }

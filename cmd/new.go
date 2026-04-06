@@ -130,6 +130,10 @@ func init() {
 		"no-clang-format", false,
 		"Não gerar arquivo .clang-format",
 	)
+	newCmd.Flags().String(
+		"clang-format-style", "llvm",
+		"Estilo base do .clang-format: llvm, google, chromium, mozilla, webkit, microsoft, gnu",
+	)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,6 +289,15 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 	cfg.UseClangd = !noClangd
 	cfg.UseClangFormat = !noClangFmt
 
+	// ── Clang-Format style ────────────────────────────────────────────────────
+	if styleStr, _ := cmd.Flags().GetString("clang-format-style"); styleStr != "" {
+		style, err := parseClangFormatStyle(styleStr)
+		if err != nil {
+			return nil, err
+		}
+		cfg.ClangFormatStyle = style
+	}
+
 	// ── Required validation in non-interactive mode ───────────────────────────
 	if cfg.Name == "" {
 		return nil, errors.New(
@@ -387,6 +400,31 @@ func parseLayout(s string) (config.FolderLayout, error) {
 	}
 }
 
+// parseClangFormatStyle converts a string (e.g. "google") to config.ClangFormatStyle.
+func parseClangFormatStyle(s string) (config.ClangFormatStyle, error) {
+	switch strings.ToLower(s) {
+	case "llvm":
+		return config.ClangFormatLLVM, nil
+	case "google":
+		return config.ClangFormatGoogle, nil
+	case "chromium":
+		return config.ClangFormatChromium, nil
+	case "mozilla":
+		return config.ClangFormatMozilla, nil
+	case "webkit":
+		return config.ClangFormatWebKit, nil
+	case "microsoft":
+		return config.ClangFormatMicrosoft, nil
+	case "gnu":
+		return config.ClangFormatGNU, nil
+	default:
+		return "", fmt.Errorf(
+			"estilo clang-format inválido %q; valores aceitos: llvm, google, chromium, mozilla, webkit, microsoft, gnu",
+			s,
+		)
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Formatted output
 // ─────────────────────────────────────────────────────────────────────────────
@@ -420,7 +458,12 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 		tui.FormatKeyValue("IDE", cfg.IDE.Label()),
 		tui.FormatKeyValue("Git", boolLabel(cfg.UseGit)),
 		tui.FormatKeyValue("Clangd", boolLabel(cfg.UseClangd)),
-		tui.FormatKeyValue("Clang-Format", boolLabel(cfg.UseClangFormat)),
+		tui.FormatKeyValue("Clang-Format", func() string {
+			if !cfg.UseClangFormat {
+				return "Não"
+			}
+			return "Sim  (" + string(cfg.ClangFormatStyle) + ")"
+		}()),
 		tui.FormatKeyValue("Destino", cfg.ProjectPath()),
 	}
 

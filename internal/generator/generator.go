@@ -93,9 +93,10 @@ type TemplateData struct {
 
 	// ── Optional tool flags ───────────────────────────────────────────────────
 
-	UseGit         bool // initialize Git repository
-	UseClangd      bool // generate .clangd
-	UseClangFormat bool // generate .clang-format
+	UseGit           bool   // initialize Git repository
+	UseClangd        bool   // generate .clangd
+	UseClangFormat   bool   // generate .clang-format
+	ClangFormatStyle string // base style for .clang-format (e.g. "LLVM", "Google")
 
 	// ── Folder layout ─────────────────────────────────────────────────────────
 	// Derived from the layout.Spec calculated in buildTemplateData().
@@ -370,9 +371,10 @@ func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateDa
 		IsZed:    cfg.IDE == config.IDEZed,
 
 		// Optional tools
-		UseGit:         cfg.UseGit,
-		UseClangd:      cfg.UseClangd,
-		UseClangFormat: cfg.UseClangFormat,
+		UseGit:           cfg.UseGit,
+		UseClangd:        cfg.UseClangd,
+		UseClangFormat:   cfg.UseClangFormat,
+		ClangFormatStyle: string(cfg.ClangFormatStyle),
 
 		// Folder layout — derived from the resolved layout.Spec
 		Layout:                      string(spec.Kind),

@@ -32,11 +32,12 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	// Intermediate string variables for selection fields,
 	// since huh.NewSelect requires *string while config uses custom types.
 	var (
-		standard    = string(cfg.Standard)
-		projectType = string(cfg.ProjectType)
-		layout      = string(cfg.Layout)
-		pkgManager  = string(cfg.PackageManager)
-		ide         = string(cfg.IDE)
+		standard         = string(cfg.Standard)
+		projectType      = string(cfg.ProjectType)
+		layout           = string(cfg.Layout)
+		pkgManager       = string(cfg.PackageManager)
+		ide              = string(cfg.IDE)
+		clangFormatStyle = string(cfg.ClangFormatStyle)
 	)
 
 	// ── Group 1: Project Identity ─────────────────────────────────────────────
@@ -186,10 +187,26 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 
 		huh.NewConfirm().
 			Title("Adicionar Clang-Format?").
-			Description("Gera .clang-format com estilo Google/LLVM customizado.").
+			Description("Gera .clang-format para formatação automática do código.").
 			Affirmative("Sim").
 			Negative("Não").
 			Value(&cfg.UseClangFormat),
+
+		huh.NewSelect[string]().
+			Title("Estilo do Clang-Format").
+			DescriptionFunc(func() string {
+				return config.ClangFormatStyle(clangFormatStyle).Description()
+			}, &clangFormatStyle).
+			Options(
+				huh.NewOption("LLVM        — personalizado  (4 espaços, Allman, 100 cols)", string(config.ClangFormatLLVM)),
+				huh.NewOption("Google      — Google C++ Style Guide  (2 espaços, 80 cols)", string(config.ClangFormatGoogle)),
+				huh.NewOption("Chromium    — baseado em Google  (Chromium project)", string(config.ClangFormatChromium)),
+				huh.NewOption("Mozilla     — Mozilla Coding Style", string(config.ClangFormatMozilla)),
+				huh.NewOption("WebKit      — WebKit Coding Style  (4 espaços)", string(config.ClangFormatWebKit)),
+				huh.NewOption("Microsoft   — Microsoft C++ Style", string(config.ClangFormatMicrosoft)),
+				huh.NewOption("GNU         — GNU Coding Standards", string(config.ClangFormatGNU)),
+			).
+			Value(&clangFormatStyle),
 	)
 
 	// ── Form construction and execution ──────────────────────────────────────
@@ -217,6 +234,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	cfg.Layout = config.FolderLayout(layout)
 	cfg.PackageManager = config.PackageManager(pkgManager)
 	cfg.IDE = config.IDE(ide)
+	cfg.ClangFormatStyle = config.ClangFormatStyle(clangFormatStyle)
 
 	return cfg, nil
 }

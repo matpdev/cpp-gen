@@ -183,7 +183,8 @@ Completion:
 //   - CI/CD: clang-format --dry-run --Werror to check formatting
 //
 // Reference: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
-const tmplClangFormat = `# =============================================================================
+const tmplClangFormat = `{{- if eq .ClangFormatStyle "LLVM"}}
+# =============================================================================
 # .clang-format — Regras de formatação de código C++
 # =============================================================================
 # Documentação: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
@@ -205,7 +206,7 @@ Language:        Cpp
 Standard:        c++{{.Standard}}
 
 # Herda do estilo LLVM como base e sobrescreve as opções abaixo.
-BasedOnStyle:    LLVM
+BasedOnStyle:    {{.ClangFormatStyle}}
 
 # ── Indentação ────────────────────────────────────────────────────────────────
 
@@ -377,4 +378,27 @@ PenaltyReturnTypeOnItsOwnLine:  200
 SeparateDefinitionBlocks:       Leave  # Mantém separação entre definições como está
 ShortNamespaceLines:            1      # Namespace com 1 linha: namespace foo { bar(); }
 SortUsingDeclarations:          true   # Ordena declarações using alfabeticamente
+{{- else}}
+# =============================================================================
+# .clang-format — Regras de formatação de código C++
+# =============================================================================
+# Documentação: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+#
+# Para formatar um arquivo manualmente:
+#   clang-format -i src/main.cpp
+#
+# Para formatar o projeto inteiro:
+#   find src include tests -name "*.cpp" -o -name "*.hpp" | xargs clang-format -i
+#
+# Para verificar sem modificar (útil em CI/CD):
+#   clang-format --dry-run --Werror src/main.cpp
+# =============================================================================
+---
+Language:        Cpp
+Standard:        c++{{.Standard}}
+
+# Estilo base. Para personalizar, adicione opções abaixo.
+# Referência: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle:    {{.ClangFormatStyle}}
+{{- end}}
 `
