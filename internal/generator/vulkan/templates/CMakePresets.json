@@ -1,0 +1,145 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 20,
+        "patch": 0
+    },
+
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "description": "Configurações base compartilhadas por todos os presets",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/install/${presetName}",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "{{.NameUpper}}_BUILD_TESTS": "ON"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "description": "Build de desenvolvimento com símbolos de debug",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_FLAGS_DEBUG": "-g3 -O0 -fno-omit-frame-pointer"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "description": "Build otimizado para produção",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "{{.NameUpper}}_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "release-with-debug",
+            "displayName": "RelWithDebInfo",
+            "description": "Release com informações de debug (profiling)",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "sanitize",
+            "displayName": "Debug + Sanitizers",
+            "description": "Debug com AddressSanitizer e UndefinedBehaviorSanitizer",
+            "inherits": "debug",
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all"
+            }
+        },
+        {
+            "name": "vcpkg-base",
+            "hidden": true,
+            "description": "Base para presets com VCPKG",
+            "inherits": "base",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "VCPKG_BUILD_TYPE": "debug"
+            }
+        },
+        {
+            "name": "vcpkg-debug",
+            "displayName": "VCPKG Debug",
+            "description": "Debug com dependências VCPKG (requer VCPKG_ROOT)",
+            "inherits": ["debug", "vcpkg-base"]
+        },
+        {
+            "name": "vcpkg-release",
+            "displayName": "VCPKG Release",
+            "description": "Release com dependências VCPKG (requer VCPKG_ROOT)",
+            "inherits": ["release", "vcpkg-base"],
+            "cacheVariables": {
+                "VCPKG_BUILD_TYPE": "release"
+            }
+        }
+    ],
+
+    "buildPresets": [
+        {
+            "name": "build-debug",
+            "displayName": "Build Debug",
+            "configurePreset": "debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "build-release",
+            "displayName": "Build Release",
+            "configurePreset": "release",
+            "configuration": "Release"
+        },
+        {
+            "name": "build-sanitize",
+            "displayName": "Build Sanitizers",
+            "configurePreset": "sanitize",
+            "configuration": "Debug"
+        },
+        {
+            "name": "build-vcpkg-debug",
+            "displayName": "Build VCPKG Debug",
+            "configurePreset": "vcpkg-debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "build-vcpkg-release",
+            "displayName": "Build VCPKG Release",
+            "configurePreset": "vcpkg-release",
+            "configuration": "Release"
+        }
+    ],
+
+    "testPresets": [
+        {
+            "name": "test-debug",
+            "displayName": "Testes Debug",
+            "configurePreset": "debug",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true,
+                "verbosity": "default"
+            },
+            "execution": {
+                "stopOnFailure": false,
+                "timeout": 60
+            }
+        },
+        {
+            "name": "test-vcpkg-debug",
+            "displayName": "Testes VCPKG Debug",
+            "configurePreset": "vcpkg-debug",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

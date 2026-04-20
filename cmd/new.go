@@ -93,6 +93,13 @@ func init() {
 		"Versão inicial do projeto no formato SemVer (ex: 1.0.0)",
 	)
 
+	// ── Template ────────────────────────────────────────────────────────────────────
+
+	newCmd.Flags().String(
+		"template", "blank",
+		"Template base do projeto: blank | vulkan",
+	)
+
 	// ── Technical configuration flags ─────────────────────────────────────────
 
 	newCmd.Flags().String(
@@ -192,13 +199,15 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("configuração incompleta:\n  • %s", strings.Join(errs, "\n  • "))
 	}
 
-	// ── Display summary before generating ────────────────────────────────────
-
-	printProjectSummary(cfg)
-
-	// ── Generator execution ───────────────────────────────────────────────────
+	// ── Generator execution ─────────────────────────────────────────────────
+	// New() may override cfg fields (e.g. for Vulkan template),
+	// so the summary is printed after to reflect the actual values used.
 
 	gen := generator.New(cfg, isVerbose(cmd))
+
+	// ── Display summary before generating ──────────────────────────────────────────
+
+	printProjectSummary(cfg)
 
 	if err := gen.Generate(); err != nil {
 		return fmt.Errorf("falha ao gerar o projeto: %w", err)
@@ -222,6 +231,15 @@ func runNew(cmd *cobra.Command, args []string) error {
 // and automation scripts.
 func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.ProjectConfig, error) {
 	cfg := config.Default()
+
+	// ── Template ────────────────────────────────────────────────────────────────────
+	if tmplStr, _ := cmd.Flags().GetString("template"); tmplStr != "" {
+		tmpl, err := parseProjectTemplate(tmplStr)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Template = tmpl
+	}
 
 	// ── Name ──────────────────────────────────────────────────────────────────
 	if initialName != "" {
@@ -456,6 +474,20 @@ func parseDebugAdapter(s string) (config.DebugAdapter, error) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// parseProjectTemplate converts a string (e.g. "vulkan") to config.ProjectTemplate.
+func parseProjectTemplate(s string) (config.ProjectTemplate, error) {
+	switch strings.ToLower(s) {
+	case "blank", "":
+		return config.TemplateBlank, nil
+	case "vulkan":
+		return config.TemplateVulkan, nil
+	default:
+		return "", fmt.Errorf(
+			"template inválido %q; valores aceitos: blank, vulkan", s,
+		)
+	}
+}
+
 // Formatted output
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -477,6 +509,7 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 	fmt.Println(headerStyle.Render("Resumo do Projeto"))
 
 	rows := []string{
+		tui.FormatKeyValue("Template", cfg.Template.Label()),
 		tui.FormatKeyValue("Nome", cfg.Name),
 		tui.FormatKeyValue("Descrição", orDash(cfg.Description)),
 		tui.FormatKeyValue("Autor", orDash(cfg.Author)),

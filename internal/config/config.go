@@ -5,6 +5,49 @@ package config
 import "path/filepath"
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ProjectTemplate
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ProjectTemplate represents the base template used to bootstrap the project.
+type ProjectTemplate string
+
+const (
+	// TemplateBlank generates a standard blank C++ project (current behavior).
+	TemplateBlank ProjectTemplate = "blank"
+
+	// TemplateVulkan generates a Vulkan application project based on the
+	// vulkan-start-template, including vklib abstraction, shaders, and all
+	// required dependencies (Vulkan, vk-bootstrap, VMA, GLFW, GLM, ImGui, etc.).
+	TemplateVulkan ProjectTemplate = "vulkan"
+)
+
+// ProjectTemplateOptions returns all available templates.
+func ProjectTemplateOptions() []ProjectTemplate {
+	return []ProjectTemplate{TemplateBlank, TemplateVulkan}
+}
+
+// Label returns the user-friendly template name for display.
+func (t ProjectTemplate) Label() string {
+	switch t {
+	case TemplateVulkan:
+		return "Vulkan  — aplicação Vulkan com vklib, GLFW, GLM e ImGui"
+	default:
+		return "Em branco — projeto C++ padrão"
+	}
+}
+
+// Description returns a short explanation shown as a hint in the TUI.
+func (t ProjectTemplate) Description() string {
+	switch t {
+	case TemplateVulkan:
+		return "Template completo: vklib, shaders GLSL→SPIR-V, VulkanMemoryAllocator,\nvk-bootstrap, GLFW, GLM, ImGui e tinyobjloader.\nLayout: two-root  |  Padrão: C++23  |  Pacotes: VCPKG + FetchContent"
+	default:
+		return "Projeto em branco configurável. Escolha layout, tipo, pacotes e IDE."
+	}
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FolderLayout
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -436,6 +479,11 @@ type ProjectConfig struct {
 
 	// Name is the project name (e.g. "my-project").
 	// Used to name directories, CMake targets and variables.
+	// Template defines the base project template to use for generation.
+	// TemplateBlank uses the standard blank project flow.
+	// TemplateVulkan uses the Vulkan-specific template with vklib.
+	Template ProjectTemplate
+
 	Name string
 
 	// Description is a brief description of the project.
@@ -532,6 +580,7 @@ func (c *ProjectConfig) Validate() []string {
 // useful as a starting point before applying the user's choices.
 func Default() *ProjectConfig {
 	return &ProjectConfig{
+		Template:         TemplateBlank,
 		Version:          "1.0.0",
 		Standard:         Cpp20,
 		ProjectType:      TypeExecutable,

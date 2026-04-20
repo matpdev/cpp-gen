@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "{{.Name}}",
+  "version": "{{.Version}}",
+  "description": "{{if .Description}}{{.Description}}{{else}}Projeto Vulkan C++ gerado pelo cpp-gen{{end}}",
+  "builtin-baseline": "e6ebaa9c3ca8fca90c63af62fc895c2486609580",
+  "dependencies": [
+    "glm",
+    "glfw3",
+    "spdlog",
+    {
+      "name": "imgui",
+      "version>=": "1.91.9",
+      "features": [
+        "vulkan-binding",
+        "glfw-binding"
+      ]
+    },
+    "tinyobjloader",
+    "stb",
+    "vulkan-memory-allocator"
+  ],
+  "features": {
+    "tests": {
+      "description": "Habilita dependências de framework de testes",
+      "dependencies": []
+    }
+  }
+}

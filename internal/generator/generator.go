@@ -25,6 +25,7 @@ import (
 	"github.com/matpdev/cpp-gen/internal/generator/ide"
 	"github.com/matpdev/cpp-gen/internal/generator/layout"
 	"github.com/matpdev/cpp-gen/internal/generator/packages"
+	"github.com/matpdev/cpp-gen/internal/generator/vulkan"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +67,11 @@ type TemplateData struct {
 
 	// Year is the current year, used in copyright headers and README.
 	Year string
+
+	// IsVulkanTemplate indicates that the project uses the Vulkan template.
+	// When true, the pipeline uses the Vulkan-specific generator instead of
+	// the standard structure/cmake/packages generators.
+	IsVulkanTemplate bool
 
 	// ── Technical configuration ────────────────────────────────────────────────
 
@@ -178,6 +184,12 @@ type stepResult struct {
 // Automatically derives the TemplateData (name forms, boolean flags, etc.),
 // resolves the folder layout and calculates the root path of the project to be generated.
 func New(cfg *config.ProjectConfig, verbose bool) *Generator {
+	// For Vulkan template, fix layout/type/packages/standard to match the template.
+	if cfg.Template == config.TemplateVulkan {
+		cfg.Layout      = config.LayoutTwoRoot
+		cfg.ProjectType = config.TypeExecutable
+		cfg.Standard    = config.Cpp23
+	}
 	nameSnake := toSnakeCase(cfg.Name)
 	spec := layout.Resolve(cfg.Name, nameSnake, cfg.Layout, cfg.ProjectType)
 	data := buildTemplateData(cfg, spec)
@@ -211,16 +223,29 @@ func (g *Generator) Generate() error {
 	fmt.Printf("\n  Gerando projeto %q em %q...\n\n", g.cfg.Name, g.root)
 
 	// Steps are executed in sequence; each one records its result.
-	pipeline := []struct {
+	type pipelineStep struct {
 		label string
 		fn    func() error
-	}{
-		{"Estrutura de pastas e arquivos fonte", g.runStructure},
-		{"Arquivos CMake", g.runCMake},
-		{"Gerenciador de pacotes", g.runPackages},
-		{"Configuração da IDE", g.runIDE},
-		{"Ferramentas Clang", g.runClang},
-		{"Git e metadados do repositório", g.runGit},
+	}
+
+	var pipeline []pipelineStep
+
+	if g.data.IsVulkanTemplate {
+		pipeline = []pipelineStep{
+			{"Template Vulkan (estrutura e arquivos base)", g.runVulkanTemplate},
+			{"Configuração da IDE", g.runIDE},
+			{"Ferramentas Clang", g.runClang},
+			{"Git e metadados do repositório", g.runGit},
+		}
+	} else {
+		pipeline = []pipelineStep{
+			{"Estrutura de pastas e arquivos fonte", g.runStructure},
+			{"Arquivos CMake", g.runCMake},
+			{"Gerenciador de pacotes", g.runPackages},
+			{"Configuração da IDE", g.runIDE},
+			{"Ferramentas Clang", g.runClang},
+			{"Git e metadados do repositório", g.runGit},
+		}
 	}
 
 	for _, step := range pipeline {
@@ -312,6 +337,23 @@ func (g *Generator) runGit() error {
 	return generateGit(g.root, g.data, g.verbose)
 }
 
+// runVulkanTemplate generates all Vulkan template files:
+// directory structure, C++ source files, vklib headers,
+// CMake configuration, shaders, vcpkg.json and CMakePresets.json.
+// This step replaces runStructure, runCMake and runPackages for Vulkan projects.
+func (g *Generator) runVulkanTemplate() error {
+	return vulkan.Generate(g.root, &vulkan.Data{
+		Name:        g.data.Name,
+		NameUpper:   g.data.NameUpper,
+		NameSnake:   g.data.NameSnake,
+		NamePascal:  g.data.NamePascal,
+		Description: g.data.Description,
+		Version:     g.data.Version,
+		Standard:    g.data.Standard,
+		UseVCPKG:    g.data.UseVCPKG,
+	}, g.verbose)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Step report
 // ─────────────────────────────────────────────────────────────────────────────
@@ -352,6 +394,9 @@ func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateDa
 		Author:      cfg.Author,
 		Version:     cfg.Version,
 		Year:        fmt.Sprintf("%d", time.Now().Year()),
+
+		// Template
+		IsVulkanTemplate: cfg.Template == config.TemplateVulkan,
 
 		// Technical
 		Standard: string(cfg.Standard),

@@ -32,6 +32,8 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	// Intermediate string variables for selection fields,
 	// since huh.NewSelect requires *string while config uses custom types.
 	var (
+		templateType     = string(cfg.Template)
+		vulkanUseVCPKG   = true // padrão: VCPKG habilitado para Vulkan
 		standard         = string(cfg.Standard)
 		projectType      = string(cfg.ProjectType)
 		layout           = string(cfg.Layout)
@@ -39,6 +41,30 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		ide              = string(cfg.IDE)
 		clangFormatStyle = string(cfg.ClangFormatStyle)
 		debugAdapter     = string(cfg.DebugAdapter)
+	)
+
+	// ── Group 0: Template Selection ─────────────────────────────────────────────────────
+	groupTemplate := huh.NewGroup(
+		huh.NewNote().
+			Title("⚡ cpp-gen").
+			Description("Gerador moderno de projetos C++\nEscolha um template para começar."),
+
+		huh.NewSelect[string]().
+			Title("Template do projeto").
+			DescriptionFunc(func() string {
+				return config.ProjectTemplate(templateType).Description()
+			}, &templateType).
+			Options(
+				huh.NewOption(
+					"Em branco  — projeto C++ padrão configurável",
+					string(config.TemplateBlank),
+				),
+				huh.NewOption(
+					"Vulkan     — aplicação Vulkan com vklib, GLFW, GLM, ImGui",
+					string(config.TemplateVulkan),
+				),
+			).
+			Value(&templateType),
 	)
 
 	// ── Group 1: Project Identity ─────────────────────────────────────────────
@@ -99,7 +125,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				huh.NewOption("Header-Only      — add_library(INTERFACE)", string(config.TypeHeaderOnly)),
 			).
 			Value(&projectType),
-	)
+	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
 
 	// ── Group 3: Folder Layout ────────────────────────────────────────────────
 	groupLayout := huh.NewGroup(
@@ -135,7 +161,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				),
 			).
 			Value(&layout),
-	)
+	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
 
 	// ── Group 4: Package Manager ──────────────────────────────────────────────
 	groupPackages := huh.NewGroup(
@@ -152,7 +178,23 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				huh.NewOption("FetchContent     — CMake FetchContent nativo", string(config.PkgFetchContent)),
 			).
 			Value(&pkgManager),
-	)
+	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
+
+	// ── Group 4b: Vulkan — Package Manager ───────────────────────────────────
+	groupVulkanPackages := huh.NewGroup(
+		huh.NewNote().
+			Title("Dependências Vulkan").
+			Description("O template Vulkan usa FetchContent para vk-bootstrap automaticamente.\nOpcionalmente, use VCPKG para gerenciar as demais dependências\n(glm, glfw3, imgui, VulkanMemoryAllocator, stb, tinyobjloader)."),
+
+		huh.NewConfirm().
+			Title("Usar VCPKG?").
+			Description("Gera vcpkg.json com todas as dependências do projeto.\nSem VCPKG, o CMake buscará os pacotes no sistema (apt, brew, etc.).").
+			Affirmative("Sim — gerar vcpkg.json").
+			Negative("Não — usar pacotes do sistema").
+			Value(&vulkanUseVCPKG),
+	).WithHideFunc(func() bool {
+		return templateType != string(config.TemplateVulkan)
+	})
 
 	// ── Group 5: Development Environment ─────────────────────────────────────
 	groupIDE := huh.NewGroup(
@@ -224,10 +266,12 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 
 	// ── Form construction and execution ──────────────────────────────────────
 	form := huh.NewForm(
+		groupTemplate,
 		groupIdentity,
 		groupTechnical,
 		groupLayout,
 		groupPackages,
+		groupVulkanPackages,
 		groupIDE,
 	).
 		WithTheme(buildTheme()).
@@ -245,10 +289,19 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	cfg.Standard = config.CppStandard(standard)
 	cfg.ProjectType = config.ProjectType(projectType)
 	cfg.Layout = config.FolderLayout(layout)
-	cfg.PackageManager = config.PackageManager(pkgManager)
+	if templateType == string(config.TemplateVulkan) {
+		if vulkanUseVCPKG {
+			cfg.PackageManager = config.PkgVCPKG
+		} else {
+			cfg.PackageManager = config.PkgNone
+		}
+	} else {
+		cfg.PackageManager = config.PackageManager(pkgManager)
+	}
 	cfg.IDE = config.IDE(ide)
 	cfg.ClangFormatStyle = config.ClangFormatStyle(clangFormatStyle)
 	cfg.DebugAdapter = config.DebugAdapter(debugAdapter)
+	cfg.Template = config.ProjectTemplate(templateType)
 
 	return cfg, nil
 }
