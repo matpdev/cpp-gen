@@ -289,23 +289,76 @@ const tmplZedSettings = `{
   // ── DAP — Debug Adapter Protocol ─────────────────────────────────────────
   //
   // Configurações de debug integrado do Zed via DAP.
-  // Requer o adaptador de debug instalado:
-  //   - LLDB: instalado junto com o Xcode CLT (macOS) ou lldb (Linux)
-  //   - CodeLLDB: extensão autônoma (https://github.com/vadimcn/codelldb)
   //
-  // Para iniciar o debug: Ctrl+Shift+D (ou pelo menu Run > Debug)
+  // Adaptador configurado: {{if eq .DebugAdapter "both"}}LLDB + GDB{{else}}{{.DebugAdapter}}{{end}}
   //
+  // Para iniciar o debug: clique em Run > Debug ou use o atalho do Zed.
   // Referência: https://zed.dev/docs/debugger
 
   "debugger": {
-    // Adapters disponíveis para C++.
-    // O Zed detecta automaticamente o adapter disponível no sistema.
     "adapters": {
-      // LLDB nativo (macOS/Linux com clang)
+{{- if .UseLLDB}}
+      // LLDB — nativo no Zed (macOS/Linux com Clang)
+      // macOS: incluído no Xcode CLT  (xcode-select --install)
+      // Linux: apt install lldb  ou  dnf install lldb
       "lldb": {
         "type": "lldb"
+      }{{if .UseGDB}},{{end}}
+{{- end}}
+{{- if .UseGDB}}
+      // GDB — via modo DAP (requer GDB 14+)
+      // Linux: apt install gdb  ou  dnf install gdb
+      // macOS: brew install gdb  (requer codesigning adicional)
+      "gdb": {
+        "type": "gdb"
       }
-    }
+{{- end}}
+    },
+
+    // Configurações de launch para debug do projeto.
+    // O Zed usa estas configurações ao iniciar uma sessão de debug.
+    "launch_configurations": [
+{{- if and .IsExecutable .UseLLDB}}
+      {
+        "adapter": "lldb",
+        "label": "Debug: {{ .ProjectName }} (LLDB)",
+        "program": "${ZED_WORKTREE_ROOT}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/bin/{{ .ProjectName }}",
+        "args": [],
+        "cwd": "${ZED_WORKTREE_ROOT}",
+        "stop_on_entry": false
+      }{{if or .UseGDB (not .IsExecutable)}},{{end}}
+{{- end}}
+{{- if and .IsExecutable .UseGDB}}
+      {
+        "adapter": "gdb",
+        "label": "Debug: {{ .ProjectName }} (GDB)",
+        "program": "${ZED_WORKTREE_ROOT}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/bin/{{ .ProjectName }}",
+        "args": [],
+        "cwd": "${ZED_WORKTREE_ROOT}",
+        "stop_on_entry": false
+      },
+{{- end}}
+{{- if .UseLLDB}}
+      {
+        "adapter": "lldb",
+        "label": "Debug: Testes (LLDB)",
+        "program": "${ZED_WORKTREE_ROOT}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
+        "args": [],
+        "cwd": "${ZED_WORKTREE_ROOT}",
+        "stop_on_entry": false
+      }{{if .UseGDB}},{{end}}
+{{- end}}
+{{- if .UseGDB}}
+      {
+        "adapter": "gdb",
+        "label": "Debug: Testes (GDB)",
+        "program": "${ZED_WORKTREE_ROOT}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
+        "args": [],
+        "cwd": "${ZED_WORKTREE_ROOT}",
+        "stop_on_entry": false
+      }
+{{- end}}
+    ]
   }
 }
 `

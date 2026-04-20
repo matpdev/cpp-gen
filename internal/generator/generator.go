@@ -282,6 +282,7 @@ func (g *Generator) runIDE() error {
 		NameUpper:    g.data.NameUpper,
 		IsExecutable: g.data.IsExecutable,
 		UseVCPKG:     g.data.UseVCPKG,
+		DebugAdapter: string(g.cfg.DebugAdapter),
 	}
 
 	switch g.cfg.IDE {

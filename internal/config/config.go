@@ -195,6 +195,63 @@ func (i IDE) Label() string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// DebugAdapter represents the debugger backend used for IDE debug configurations.
+// Controls which debug adapter configurations are generated for each IDE:
+//   - VSCode:  CodeLLDB (lldb) or cppdbg/GDB (gdb) in launch.json
+//   - Neovim:  lldb-dap (lldb) or gdb --interpreter=dap (gdb) in .nvim.lua
+//   - Zed:     built-in LLDB (lldb) or GDB adapter (gdb) in .zed/settings.json
+//   - CLion:   documented preference (CLion selects GDB/LLDB via toolchain settings)
+type DebugAdapter string
+
+const (
+	// DebugAdapterLLDB configures LLDB as the sole debug adapter.
+	// Recommended for macOS and Linux projects that use the Clang toolchain.
+	DebugAdapterLLDB DebugAdapter = "lldb"
+
+	// DebugAdapterGDB configures GDB as the sole debug adapter.
+	// Recommended for Linux projects that use the GCC toolchain.
+	DebugAdapterGDB DebugAdapter = "gdb"
+
+	// DebugAdapterBoth generates configurations for both LLDB and GDB,
+	// useful for cross-platform projects or teams with mixed toolchains.
+	DebugAdapterBoth DebugAdapter = "both"
+)
+
+// DebugAdapterOptions returns all available debug adapters in suggested order.
+func DebugAdapterOptions() []DebugAdapter {
+	return []DebugAdapter{DebugAdapterLLDB, DebugAdapterGDB, DebugAdapterBoth}
+}
+
+// Label returns the user-friendly name for display in the TUI.
+func (d DebugAdapter) Label() string {
+	switch d {
+	case DebugAdapterLLDB:
+		return "LLDB   — macOS / Linux + Clang  (recomendado)"
+	case DebugAdapterGDB:
+		return "GDB    — Linux + GCC"
+	case DebugAdapterBoth:
+		return "Ambos  — gera configurações para LLDB e GDB"
+	default:
+		return string(d)
+	}
+}
+
+// Description returns a short explanation shown as a hint in the TUI.
+func (d DebugAdapter) Description() string {
+	switch d {
+	case DebugAdapterLLDB:
+		return "VSCode: CodeLLDB. Neovim: lldb-dap. Zed: adapter nativo LLDB."
+	case DebugAdapterGDB:
+		return "VSCode: cppdbg (ms-vscode.cpptools). Neovim/Zed: gdb --interpreter=dap."
+	case DebugAdapterBoth:
+		return "Gera configurações para os dois adaptadores. Útil para equipes mistas."
+	default:
+		return ""
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // PackageManager represents the C++ package manager to be configured.
 type PackageManager string
 
@@ -410,6 +467,10 @@ type ProjectConfig struct {
 	// IDE defines the target IDE for generating specific configurations.
 	IDE IDE
 
+	// DebugAdapter defines the debugger backend for IDE debug configurations.
+	// Only applies when an IDE is selected (IDE != IDENone).
+	DebugAdapter DebugAdapter
+
 	// ── Optional feature flags ────────────────────────────────────────────────
 
 	// UseGit indicates whether a Git repository should be initialized in the project.
@@ -477,6 +538,7 @@ func Default() *ProjectConfig {
 		Layout:           LayoutSeparate,
 		PackageManager:   PkgNone,
 		IDE:              IDENone,
+		DebugAdapter:     DebugAdapterLLDB,
 		UseGit:           true,
 		UseClangd:        true,
 		UseClangFormat:   true,

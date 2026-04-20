@@ -453,51 +453,64 @@ const tmplVSCodeLaunch = `{
     // ==========================================================================
     // Documentação: https://code.visualstudio.com/docs/cpp/launch-json-reference
     //
-    // Extensões necessárias (instale pelo extensions.json):
-    //   - CodeLLDB:      vadimcn.vscode-lldb         (recomendado: Linux/macOS)
-    //   - C/C++ (MS):    ms-vscode.cpptools           (alternativa: todas as plataformas)
+    // Adaptador de debug configurado: {{if eq .DebugAdapter "both"}}LLDB + GDB{{else}}{{.DebugAdapter}}{{end}}
+    //
+{{- if .UseLLDB}}
+    // ── CodeLLDB (LLDB) ───────────────────────────────────────────────────────
+    // Extensão: vadimcn.vscode-lldb
+    // Instale: Ctrl+Shift+X → pesquise "CodeLLDB"
+{{- end}}
+{{- if .UseGDB}}
+    // ── C/C++ Extension (GDB) ─────────────────────────────────────────────────
+    // Extensão: ms-vscode.cpptools
+    // Instale: Ctrl+Shift+X → pesquise "C/C++"
+{{- end}}
     //
     // Para iniciar o debug: F5  (usa a configuração ativa na barra de status)
     // ==========================================================================
     "version": "0.2.0",
     "configurations": [
 {{if .IsExecutable}}
-        // ── CodeLLDB — Recomendado para Linux/macOS com Clang ──────────────────
+{{- if .UseLLDB}}
+        // ── CodeLLDB — LLDB nativo (Linux/macOS com Clang) ────────────────────
         {
             "name": "Debug: {{ .ProjectName }} (LLDB)",
             "type": "lldb",
             "request": "launch",
-
-            // Caminho para o binário compilado em modo Debug.
-            // Ajuste se alterar CMAKE_RUNTIME_OUTPUT_DIRECTORY no CMakeLists.txt.
             "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/bin/{{ .ProjectName }}",
-
-            // Argumentos passados ao programa na inicialização.
-            // Use "${command:pickArgs}" para digitar os args a cada sessão.
             "args": [],
-
-            // Diretório de trabalho do processo depurado.
             "cwd": "${workspaceFolder}",
-
-            // Variáveis de ambiente adicionais para o processo depurado.
             "env": {},
-
-            // Para: breakpoints em código de sistema (libstdc++, libc, etc.)
-            "sourceMap": {},
-
-            // Inicia automaticamente o build antes de depurar.
             "preLaunchTask": "CMake: Build (Debug)",
-
-            // Console do terminal integrado (útil para programas que leem stdin).
             "terminal": "integrated",
-
-            // Exibição de tipos STL formatados (requer pretty-printers do LLDB).
             "initCommands": [
                 "settings set target.max-string-summary-length 256"
             ]
         },
 
-        // ── cppdbg com GDB — Alternativa Linux/macOS ou preferência por GDB ───
+        // ── Debug dos testes (LLDB) ────────────────────────────────────────────
+        {
+            "name": "Debug: Testes (LLDB)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake: Build (Debug)",
+            "terminal": "integrated"
+        },
+
+        // ── Attach (LLDB) ──────────────────────────────────────────────────────
+        {
+            "name": "Debug: Attach to Process (LLDB)",
+            "type": "lldb",
+            "request": "attach",
+            "pid": "${command:pickProcess}",
+            "stopOnEntry": false
+        },
+{{- end}}
+{{- if .UseGDB}}
+        // ── cppdbg com GDB ────────────────────────────────────────────────────
         {
             "name": "Debug: {{ .ProjectName }} (GDB)",
             "type": "cppdbg",
@@ -509,9 +522,6 @@ const tmplVSCodeLaunch = `{
             "externalConsole": false,
             "MIMode": "gdb",
             "miDebuggerPath": "/usr/bin/gdb",
-
-            // Configurações de setup do GDB: carrega pretty-printers do Python
-            // para exibição legível de std::vector, std::string, etc.
             "setupCommands": [
                 {
                     "description": "Habilitar pretty-printing para GDB",
@@ -524,7 +534,6 @@ const tmplVSCodeLaunch = `{
                     "ignoreFailures": true
                 }
             ],
-
             "preLaunchTask": "CMake: Build (Debug)",
             "stopAtEntry": false,
             "logging": {
@@ -534,60 +543,7 @@ const tmplVSCodeLaunch = `{
             }
         },
 
-        // ── cppdbg com LLDB — Alternativa macOS usando cppdbg ─────────────────
-        {
-            "name": "Debug: {{ .ProjectName }} (LLDB via cppdbg)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/bin/{{ .ProjectName }}",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "lldb",
-            "setupCommands": [
-                {
-                    "description": "Habilitar pretty-printing",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "CMake: Build (Debug)"
-        },
-
-        // ── Debug dos testes ───────────────────────────────────────────────────
-        {
-            "name": "Debug: Testes (LLDB)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CMake: Build (Debug)",
-            "terminal": "integrated"
-        },
-
-        // ── Attach — anexa a um processo já em execução ────────────────────────
-        {
-            "name": "Debug: Attach to Process (LLDB)",
-            "type": "lldb",
-            "request": "attach",
-            "pid": "${command:pickProcess}",
-            "stopOnEntry": false
-        }
-{{else}}
-        // ── Debug dos testes (biblioteca — sem executável principal) ───────────
-        {
-            "name": "Debug: Testes (LLDB)",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CMake: Build (Debug)",
-            "terminal": "integrated"
-        },
-
+        // ── Debug dos testes (GDB) ─────────────────────────────────────────────
         {
             "name": "Debug: Testes (GDB)",
             "type": "cppdbg",
@@ -605,12 +561,44 @@ const tmplVSCodeLaunch = `{
                 }
             ],
             "preLaunchTask": "CMake: Build (Debug)"
-        }
+        },
+{{- end}}
+{{else}}
+        // ── Biblioteca: debug via testes ───────────────────────────────────────
+{{- if .UseLLDB}}
+        {
+            "name": "Debug: Testes (LLDB)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake: Build (Debug)",
+            "terminal": "integrated"
+        },
+{{- end}}
+{{- if .UseGDB}}
+        {
+            "name": "Debug: Testes (GDB)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/{{if .UseVCPKG}}vcpkg-debug{{else}}debug{{end}}/tests/{{ .ProjectName }}_tests",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Habilitar pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: Build (Debug)"
+        },
+{{- end}}
 {{end}}
     ],
-
-    // ── Compound launch configurations ────────────────────────────────────────
-    // Inicia múltiplas configurações simultaneamente (útil para cliente/servidor).
     "compounds": []
 }
 `

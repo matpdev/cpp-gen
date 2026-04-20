@@ -38,6 +38,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		pkgManager       = string(cfg.PackageManager)
 		ide              = string(cfg.IDE)
 		clangFormatStyle = string(cfg.ClangFormatStyle)
+		debugAdapter     = string(cfg.DebugAdapter)
 	)
 
 	// ── Group 1: Project Identity ─────────────────────────────────────────────
@@ -171,6 +172,18 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			).
 			Value(&ide),
 
+		huh.NewSelect[string]().
+			Title("Debug Adapter").
+			DescriptionFunc(func() string {
+				return config.DebugAdapter(debugAdapter).Description()
+			}, &debugAdapter).
+			Options(
+				huh.NewOption("LLDB   — macOS / Linux + Clang  (recomendado)", string(config.DebugAdapterLLDB)),
+				huh.NewOption("GDB    — Linux + GCC", string(config.DebugAdapterGDB)),
+				huh.NewOption("Ambos  — gera configurações para LLDB e GDB", string(config.DebugAdapterBoth)),
+			).
+			Value(&debugAdapter),
+
 		huh.NewConfirm().
 			Title("Inicializar repositório Git?").
 			Description("Cria .git/, .gitignore e commit inicial.").
@@ -235,6 +248,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	cfg.PackageManager = config.PackageManager(pkgManager)
 	cfg.IDE = config.IDE(ide)
 	cfg.ClangFormatStyle = config.ClangFormatStyle(clangFormatStyle)
+	cfg.DebugAdapter = config.DebugAdapter(debugAdapter)
 
 	return cfg, nil
 }

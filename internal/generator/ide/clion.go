@@ -313,6 +313,17 @@ const tmplCLionRunDebug = `<component name="ProjectRunConfigurationManager">
     Para adicionar mais configurações: Run → Edit Configurations...
     ============================================================================
   -->
+  <!--
+    Debugger preferido para este projeto: {{if eq .DebugAdapter "both"}}LLDB + GDB (ambos){{else}}{{.DebugAdapter}}{{end}}
+
+    O CLion seleciona GDB ou LLDB com base nas configurações de Toolchain:
+      Settings → Build, Execution, Deployment → Toolchains
+
+    Para forçar LLDB: selecione um toolchain que use LLDB como debugger.
+    Para forçar GDB:  selecione um toolchain que use GDB como debugger.
+
+    Referência: https://www.jetbrains.com/help/clion/lldb-with-clion.html
+  -->
   <configuration
     default="false"
     name="{{.ProjectName}} [Debug]"
@@ -608,9 +619,11 @@ end, { desc = "[{{ .ProjectName }}] CMake: Delete build/" })
 local ok_dap, dap = pcall(require, "dap")
 if ok_dap then
 
+{{- if .UseLLDB}}
   -- ── Adapter LLDB ────────────────────────────────────────────────────────────
-  -- Tenta configurar o adapter LLDB (recomendado para Linux/macOS com Clang).
-  -- Se lldb-vscode / lldb-dap não estiver instalado, tenta o GDB como fallback.
+  -- Requer: lldb-dap (anteriormente lldb-vscode)
+  --   macOS:  xcode-select --install  (incluído no Xcode CLT)
+  --   Linux:  apt install lldb  ou  dnf install lldb
   local lldb_executable = vim.fn.exepath("lldb-dap")
     or vim.fn.exepath("lldb-vscode")
 
@@ -621,7 +634,6 @@ if ok_dap then
       name    = "lldb",
     }
 
-    -- Configuração de debug para C++ com LLDB
     dap.configurations.cpp = dap.configurations.cpp or {}
     table.insert(dap.configurations.cpp, {
       name    = "[{{ .ProjectName }}] Debug (LLDB)",
@@ -634,15 +646,12 @@ if ok_dap then
       stopOnEntry    = false,
       args           = {},
       runInTerminal  = false,
-      -- Inicializa pretty-printers do LLDB para exibir STL legível.
       initCommands   = {
         "settings set target.max-string-summary-length 256",
       },
-      -- preLaunchTask: compile antes de depurar (requer nvim-dap-tasks ou similar).
     })
 
     {{- if not .IsExecutable}}
-    -- Configuração para depurar os testes da biblioteca
     table.insert(dap.configurations.cpp, {
       name    = "[{{ .ProjectName }}] Debug Tests (LLDB)",
       type    = "lldb",
@@ -658,29 +667,62 @@ if ok_dap then
     {{- end}}
 
   else
-    -- ── Fallback: GDB ─────────────────────────────────────────────────────────
-    local gdb_executable = vim.fn.exepath("gdb")
-    if gdb_executable and gdb_executable ~= "" then
-      dap.adapters.gdb = {
-        type    = "executable",
-        command = gdb_executable,
-        args    = { "--interpreter=dap", "--eval-command", "set print pretty on" },
-        name    = "gdb",
-      }
-
-      dap.configurations.cpp = dap.configurations.cpp or {}
-      table.insert(dap.configurations.cpp, {
-        name    = "[{{ .ProjectName }}] Debug (GDB)",
-        type    = "gdb",
-        request = "launch",
-        program = project_root
-          .. "/build/" .. cmake_preset_debug
-          .. "/bin/{{ .ProjectName }}",
-        cwd         = project_root,
-        stopAtBeginningOfMainSubprogram = false,
-      })
-    end
+    vim.notify(
+      "[{{ .ProjectName }}] lldb-dap não encontrado.\n"
+      .. "  macOS: xcode-select --install\n"
+      .. "  Linux: apt install lldb  ou  dnf install lldb",
+      vim.log.levels.WARN
+    )
   end
+{{- end}}
+
+{{- if .UseGDB}}
+  -- ── Adapter GDB ─────────────────────────────────────────────────────────────
+  -- Requer: gdb 14+ (suporte a --interpreter=dap)
+  --   Linux:  apt install gdb  ou  dnf install gdb
+  --   macOS:  brew install gdb  (requer codesigning extra)
+  local gdb_executable = vim.fn.exepath("gdb")
+  if gdb_executable and gdb_executable ~= "" then
+    dap.adapters.gdb = {
+      type    = "executable",
+      command = gdb_executable,
+      args    = { "--interpreter=dap", "--eval-command", "set print pretty on" },
+      name    = "gdb",
+    }
+
+    dap.configurations.cpp = dap.configurations.cpp or {}
+    table.insert(dap.configurations.cpp, {
+      name    = "[{{ .ProjectName }}] Debug (GDB)",
+      type    = "gdb",
+      request = "launch",
+      program = project_root
+        .. "/build/" .. cmake_preset_debug
+        .. "/bin/{{ .ProjectName }}",
+      cwd         = project_root,
+      stopAtBeginningOfMainSubprogram = false,
+    })
+
+    {{- if not .IsExecutable}}
+    table.insert(dap.configurations.cpp, {
+      name    = "[{{ .ProjectName }}] Debug Tests (GDB)",
+      type    = "gdb",
+      request = "launch",
+      program = project_root
+        .. "/build/" .. cmake_preset_debug
+        .. "/tests/{{ .ProjectName }}_tests",
+      cwd         = project_root,
+      stopAtBeginningOfMainSubprogram = false,
+    })
+    {{- end}}
+
+  else
+    vim.notify(
+      "[{{ .ProjectName }}] gdb não encontrado.\n"
+      .. "  Linux: apt install gdb  ou  dnf install gdb",
+      vim.log.levels.WARN
+    )
+  end
+{{- end}}
 
   -- ── Keymaps de debug ────────────────────────────────────────────────────────
 

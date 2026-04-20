@@ -42,6 +42,10 @@ type Data struct {
 	// UseVCPKG indicates whether the project uses VCPKG as the package manager.
 	// When true, debug/build presets use the vcpkg-* presets.
 	UseVCPKG bool
+
+	// DebugAdapter is the chosen debugger backend: "lldb", "gdb", or "both".
+	// Used by IDE generators to emit the appropriate debug configurations.
+	DebugAdapter string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,6 +90,18 @@ func (d *Data) TestPreset() string {
 func (d *Data) BinaryPath() string {
 	preset := d.ConfigurePreset()
 	return fmt.Sprintf("${workspaceFolder}/build/%s/bin/%s", preset, d.ProjectName)
+}
+
+// UseLLDB returns true if LLDB debug configurations should be generated.
+// True when DebugAdapter is "lldb" or "both".
+func (d *Data) UseLLDB() bool {
+	return d.DebugAdapter == "lldb" || d.DebugAdapter == "both"
+}
+
+// UseGDB returns true if GDB debug configurations should be generated.
+// True when DebugAdapter is "gdb" or "both".
+func (d *Data) UseGDB() bool {
+	return d.DebugAdapter == "gdb" || d.DebugAdapter == "both"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -134,6 +134,10 @@ func init() {
 		"clang-format-style", "llvm",
 		"Estilo base do .clang-format: llvm, google, chromium, mozilla, webkit, microsoft, gnu",
 	)
+	newCmd.Flags().String(
+		"debug-adapter", "lldb",
+		"Debug adapter para configurações de IDE: lldb, gdb, both",
+	)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,6 +302,15 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 		cfg.ClangFormatStyle = style
 	}
 
+	// ── Debug adapter ──────────────────────────────────────────────────────────
+	if adapterStr, _ := cmd.Flags().GetString("debug-adapter"); adapterStr != "" {
+		adapter, err := parseDebugAdapter(adapterStr)
+		if err != nil {
+			return nil, err
+		}
+		cfg.DebugAdapter = adapter
+	}
+
 	// ── Required validation in non-interactive mode ───────────────────────────
 	if cfg.Name == "" {
 		return nil, errors.New(
@@ -425,6 +438,23 @@ func parseClangFormatStyle(s string) (config.ClangFormatStyle, error) {
 	}
 }
 
+// parseDebugAdapter converts a string (e.g. "gdb") to config.DebugAdapter.
+func parseDebugAdapter(s string) (config.DebugAdapter, error) {
+	switch strings.ToLower(s) {
+	case "lldb":
+		return config.DebugAdapterLLDB, nil
+	case "gdb":
+		return config.DebugAdapterGDB, nil
+	case "both", "ambos":
+		return config.DebugAdapterBoth, nil
+	default:
+		return "", fmt.Errorf(
+			"debug adapter inválido %q; valores aceitos: lldb, gdb, both",
+			s,
+		)
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Formatted output
 // ─────────────────────────────────────────────────────────────────────────────
@@ -463,6 +493,12 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 				return "Não"
 			}
 			return "Sim  (" + string(cfg.ClangFormatStyle) + ")"
+		}()),
+		tui.FormatKeyValue("Debug Adapter", func() string {
+			if cfg.IDE == config.IDENone {
+				return "—"
+			}
+			return string(cfg.DebugAdapter)
 		}()),
 		tui.FormatKeyValue("Destino", cfg.ProjectPath()),
 	}
