@@ -115,7 +115,7 @@ func buildBlockHeader(has func(string) bool, date, copyrightLine string, meta He
 		lines = append(lines, fmt.Sprintf("Date:    %s", date))
 	}
 	if has("copyright") && copyrightLine != "" {
-		lines = append(lines, fmt.Sprintf("%s", copyrightLine))
+		lines = append(lines, copyrightLine)
 	}
 	if has("license") && meta.License != "" {
 		lines = append(lines, fmt.Sprintf("SPDX-License-Identifier: %s", meta.License))

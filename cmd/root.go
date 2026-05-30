@@ -11,7 +11,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -201,14 +200,4 @@ func isVerbose(cmd *cobra.Command) bool {
 		return false
 	}
 	return v
-}
-
-// printError prints a formatted error message to stderr and terminates the process.
-// Used by main() but available to subcommands that need to abort with style.
-func printError(err error) {
-	errStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#EF4444"))
-
-	fmt.Fprintf(os.Stderr, "%s %s\n", errStyle.Render("Erro:"), err.Error())
 }

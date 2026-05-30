@@ -447,19 +447,19 @@ func buildTheme() *huh.Theme {
 	theme := huh.ThemeCharm()
 
 	// Group header / note
-	theme.Focused.Title = TitleStyle.Copy()
-	theme.Focused.Description = MutedStyle.Copy()
+	theme.Focused.Title = TitleStyle
+	theme.Focused.Description = MutedStyle
 
 	// Selected / active field
 	theme.Focused.SelectedOption = lipglossColor(colorAccent)
-	theme.Focused.UnselectedOption = MutedStyle.Copy()
+	theme.Focused.UnselectedOption = MutedStyle
 
 	// Selection cursor
-	theme.Focused.SelectSelector = InfoStyle.Copy()
+	theme.Focused.SelectSelector = InfoStyle
 
 	// Confirmation buttons
 	theme.Focused.FocusedButton = lipglossColor(colorSuccess)
-	theme.Focused.BlurredButton = MutedStyle.Copy()
+	theme.Focused.BlurredButton = MutedStyle
 
 	return theme
 }

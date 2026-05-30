@@ -535,12 +535,3 @@ int main() {
     return 1;
 }
 `
-
-// mkdirAll is a wrapper around os.MkdirAll for use in package tests.
-// The main generator uses os.MkdirAll directly via createDirectories.
-func mkdirAll(path string) error {
-	if err := os.MkdirAll(path, 0755); err != nil {
-		return fmt.Errorf("criar diretório %q: %w", path, err)
-	}
-	return nil
-}
