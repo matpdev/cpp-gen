@@ -186,9 +186,9 @@ type stepResult struct {
 func New(cfg *config.ProjectConfig, verbose bool) *Generator {
 	// For Vulkan template, fix layout/type/packages/standard to match the template.
 	if cfg.Template == config.TemplateVulkan {
-		cfg.Layout      = config.LayoutTwoRoot
+		cfg.Layout = config.LayoutTwoRoot
 		cfg.ProjectType = config.TypeExecutable
-		cfg.Standard    = config.Cpp23
+		cfg.Standard = config.Cpp23
 	}
 	nameSnake := toSnakeCase(cfg.Name)
 	spec := layout.Resolve(cfg.Name, nameSnake, cfg.Layout, cfg.ProjectType)
@@ -241,6 +241,7 @@ func (g *Generator) Generate() error {
 		pipeline = []pipelineStep{
 			{"Estrutura de pastas e arquivos fonte", g.runStructure},
 			{"Arquivos CMake", g.runCMake},
+			{"Makefile", g.runMakefile},
 			{"Gerenciador de pacotes", g.runPackages},
 			{"Configuração da IDE", g.runIDE},
 			{"Ferramentas Clang", g.runClang},
@@ -283,6 +284,11 @@ func (g *Generator) runStructure() error {
 //   - CMakePresets.json
 func (g *Generator) runCMake() error {
 	return generateCMake(g.root, g.data, g.verbose)
+}
+
+// runMakefile writes the universal Makefile to the project root.
+func (g *Generator) runMakefile() error {
+	return generateMakefile(g.root, g.data, g.verbose)
 }
 
 // runPackages configures the chosen package manager.
