@@ -9,6 +9,7 @@ import (
 
 	"github.com/matpdev/cpp-gen/internal/config"
 	"github.com/matpdev/cpp-gen/internal/generator"
+	"github.com/matpdev/cpp-gen/internal/localconfig"
 	"github.com/matpdev/cpp-gen/internal/tui"
 
 	"github.com/charmbracelet/lipgloss"
@@ -211,6 +212,26 @@ func runNew(cmd *cobra.Command, args []string) error {
 
 	if err := gen.Generate(); err != nil {
 		return fmt.Errorf("falha ao gerar o projeto: %w", err)
+	}
+
+	// ── Write .cppgenrc.json to the generated project ────────────────────────
+	// This enables `cpp-gen generate` to work inside the new project.
+	lcfg := localconfig.DefaultLocalConfig(cfg.Name, cfg.Author)
+	lcfg.License = "MIT"
+	lcfg.Paths.Src = deriveSrcPath(cfg)
+	lcfg.Paths.Include = deriveIncludePath(cfg)
+
+	// Apply architecture settings from the project config.
+	arch := localconfig.DefaultArchitecture(cfg.ArchStyle)
+	arch.HeaderOnly = cfg.HeaderOnly || isHeaderOnlyLayout(cfg)
+	// Merge user-selected extra patterns into the architecture's default list.
+	if len(cfg.ArchPatterns) > 0 {
+		arch.Patterns = mergePatterns(arch.Patterns, cfg.ArchPatterns)
+	}
+	lcfg.Architecture = arch
+	if err := localconfig.Write(cfg.ProjectPath(), lcfg); err != nil {
+		// Non-fatal: project was already generated successfully.
+		fmt.Fprintf(os.Stderr, "aviso: não foi possível criar .cppgenrc.json: %v\n", err)
 	}
 
 	// ── Completion message ────────────────────────────────────────────────────
@@ -649,5 +670,63 @@ func renderNewLong() string {
 		"  • Configurações de IDE (tasks, launch, settings)\n" +
 		"  • Integração com VCPKG ou FetchContent\n" +
 		"  • .gitignore, README.md e commit inicial\n" +
-		"  • .clangd e .clang-format pré-configurados"
+		"  • .clangd e .clang-format pré-configurados\n" +
+		"  • .cppgenrc.json para uso com cpp-gen generate"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Local config path helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// deriveSrcPath returns the source directory path based on the chosen layout.
+func deriveSrcPath(cfg *config.ProjectConfig) string {
+	switch cfg.Layout {
+	case config.LayoutFlat:
+		return "src"
+	case config.LayoutMerged:
+		return cfg.Name
+	case config.LayoutModular:
+		return "libs"
+	default: // LayoutSeparate, LayoutTwoRoot
+		return "src"
+	}
+}
+
+// deriveIncludePath returns the include directory path based on the chosen layout.
+func deriveIncludePath(cfg *config.ProjectConfig) string {
+	switch cfg.Layout {
+	case config.LayoutFlat, config.LayoutMerged:
+		return deriveSrcPath(cfg)
+	case config.LayoutModular:
+		return "libs"
+	case config.LayoutTwoRoot:
+		return "include"
+	default: // LayoutSeparate
+		return "include/" + cfg.Name
+	}
+}
+
+// isHeaderOnlyLayout returns true when the chosen folder layout implies that
+// headers and sources share the same directory (merged or flat).
+func isHeaderOnlyLayout(cfg *config.ProjectConfig) bool {
+	return cfg.Layout == config.LayoutMerged || cfg.Layout == config.LayoutFlat
+}
+
+// mergePatterns returns a deduplicated union of base and extra slices.
+func mergePatterns(base, extra []string) []string {
+	seen := make(map[string]bool, len(base))
+	result := make([]string, 0, len(base)+len(extra))
+	for _, p := range base {
+		if !seen[p] {
+			seen[p] = true
+			result = append(result, p)
+		}
+	}
+	for _, p := range extra {
+		if !seen[p] {
+			seen[p] = true
+			result = append(result, p)
+		}
+	}
+	return result
 }

@@ -2,7 +2,11 @@
 // used by cpp-gen to describe a C++ project to be generated.
 package config
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/matpdev/cpp-gen/internal/localconfig"
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProjectTemplate
@@ -45,7 +49,6 @@ func (t ProjectTemplate) Description() string {
 		return "Projeto em branco configurável. Escolha layout, tipo, pacotes e IDE."
 	}
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FolderLayout
@@ -540,6 +543,18 @@ type ProjectConfig struct {
 	// OutputDir is the base directory where the project will be created.
 	// The project will be at OutputDir/Name.
 	OutputDir string
+
+	// ── Architecture ──────────────────────────────────────────────────────────────
+
+	// ArchStyle is the high-level architectural pattern chosen for the project.
+	ArchStyle localconfig.ArchStyle
+
+	// ArchPatterns is the list of additional design patterns to pre-configure.
+	ArchPatterns []string
+
+	// HeaderOnly indicates that .hpp and .cpp files are kept in the same
+	// directory, without a separate include/ tree.
+	HeaderOnly bool
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

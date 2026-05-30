@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/matpdev/cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/localconfig"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -41,6 +42,9 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		ide              = string(cfg.IDE)
 		clangFormatStyle = string(cfg.ClangFormatStyle)
 		debugAdapter     = string(cfg.DebugAdapter)
+		archStyle        = "flat"
+		archPatterns     []string
+		headerOnly       = false
 	)
 
 	// ── Group 0: Template Selection ─────────────────────────────────────────────────────
@@ -163,6 +167,50 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Value(&layout),
 	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
 
+	// ── Group 3b: Architecture ────────────────────────────────────────────────
+	groupArchitecture := huh.NewGroup(
+		huh.NewNote().
+			Title("Arquitetura do Projeto").
+			Description("Define como o código será organizado e quais padrões estarão disponíveis\npara geração com 'cpp-gen generate'."),
+
+		huh.NewSelect[string]().
+			Title("Estilo de arquitetura").
+			DescriptionFunc(func() string {
+				return archStyleDescription(archStyle)
+			}, &archStyle).
+			Options(
+				huh.NewOption("Flat        — sem organização por camada (padrão)", "flat"),
+				huh.NewOption("Layered     — Clean Architecture (domain/app/infra/presentation)", "layered"),
+				huh.NewOption("Modular     — por feature/módulo auto-contido", "modular"),
+				huh.NewOption("Hexagonal   — Ports & Adapters (core/adapters)", "hexagonal"),
+				huh.NewOption("MVC         — Model-View-Controller", "mvc"),
+				huh.NewOption("MVVM        — Model-View-ViewModel", "mvvm"),
+				huh.NewOption("ECS         — Entity-Component-System (jogos)", "ecs"),
+			).
+			Value(&archStyle),
+
+		huh.NewMultiSelect[string]().
+			Title("Padrões adicionais").
+			Description("Padrões que estarão disponíveis como schematics em 'cpp-gen generate'.").
+			Options(
+				huh.NewOption("repository  — interface + implementação de acesso a dados", "repository"),
+				huh.NewOption("service     — serviço de domínio com interface", "service"),
+				huh.NewOption("command     — padrão Command (undo/redo, filas)", "command"),
+				huh.NewOption("observer    — padrão Observer/Event", "observer"),
+				huh.NewOption("factory     — padrão Factory", "factory"),
+				huh.NewOption("singleton   — instância única thread-safe", "singleton"),
+				huh.NewOption("module      — módulo auto-contido", "module"),
+			).
+			Value(&archPatterns),
+
+		huh.NewConfirm().
+			Title("Header-only layout?").
+			Description("Mantém .hpp e .cpp no mesmo diretório, sem pasta include/ separada.\nAtivado automaticamente para layouts Merged e Flat.").
+			Value(&headerOnly),
+	).WithHideFunc(func() bool {
+		return templateType == string(config.TemplateVulkan)
+	})
+
 	// ── Group 4: Package Manager ──────────────────────────────────────────────
 	groupPackages := huh.NewGroup(
 		huh.NewNote().
@@ -270,6 +318,7 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		groupIdentity,
 		groupTechnical,
 		groupLayout,
+		groupArchitecture,
 		groupPackages,
 		groupVulkanPackages,
 		groupIDE,
@@ -302,8 +351,32 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	cfg.ClangFormatStyle = config.ClangFormatStyle(clangFormatStyle)
 	cfg.DebugAdapter = config.DebugAdapter(debugAdapter)
 	cfg.Template = config.ProjectTemplate(templateType)
+	cfg.ArchStyle = localconfig.ArchStyle(archStyle)
+	cfg.ArchPatterns = archPatterns
+	cfg.HeaderOnly = headerOnly
 
 	return cfg, nil
+}
+
+// archStyleDescription returns a human-readable description for the given
+// architecture style, shown dynamically in the selection field.
+func archStyleDescription(style string) string {
+	switch style {
+	case "layered":
+		return "Camadas: domain/ → application/ → infrastructure/ → presentation/\nIdeal para aplicações com lógica de negócio complexa."
+	case "modular":
+		return "Cada feature é um módulo auto-contido em modules/<feature>/\nIdeal para apps com domínios bem separados."
+	case "hexagonal":
+		return "core/ports/ define interfaces; adapters/ provê implementações.\nIdeal para alta testabilidade e troca de dependências."
+	case "mvc":
+		return "models/ + views/ + controllers/\nIdeal para aplicações desktop com UI clara."
+	case "mvvm":
+		return "models/ + viewmodels/ + views/\nIdeal para apps desktop com data binding."
+	case "ecs":
+		return "systems/ + components/ + core/\nIdeal para jogos e simulações."
+	default:
+		return "Todos os arquivos em src/ e include/ sem organização por camada.\nIdeal para projetos pequenos ou bibliotecas."
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

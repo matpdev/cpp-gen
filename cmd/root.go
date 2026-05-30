@@ -83,6 +83,8 @@ func init() {
 	// Registered subcommands
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(generateCmd)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
