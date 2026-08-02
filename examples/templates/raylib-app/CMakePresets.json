@@ -1,0 +1,67 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 20,
+        "patch": 0
+    },
+
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }{{if .UseVCPKG}},
+        {
+            "name": "vcpkg-debug",
+            "displayName": "VCPKG Debug",
+            "inherits": "debug",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        {
+            "name": "vcpkg-release",
+            "displayName": "VCPKG Release",
+            "inherits": "release",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }{{end}}
+    ],
+
+    "buildPresets": [
+        {
+            "name": "build-debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "build-release",
+            "configurePreset": "release"
+        }{{if .UseVCPKG}},
+        {
+            "name": "build-vcpkg-debug",
+            "configurePreset": "vcpkg-debug"
+        },
+        {
+            "name": "build-vcpkg-release",
+            "configurePreset": "vcpkg-release"
+        }{{end}}
+    ]
+}

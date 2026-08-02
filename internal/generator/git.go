@@ -3,6 +3,7 @@ package generator
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -13,23 +14,29 @@ import (
 
 // generateGit coordinates all operations related to the Git repository:
 //
-//  1. Generates README.md (always, regardless of UseGit)
-//  2. Generates .gitignore (always, regardless of UseGit)
+//  1. Generates README.md (always, regardless of UseGit, unless one already exists)
+//  2. Generates .gitignore (always, regardless of UseGit, unless one already exists)
 //  3. Runs `git init` and creates an initial commit (only if UseGit == true)
 //
 // The separation between file generation and git initialization allows projects
 // without git to still have a .gitignore and README ready for future use.
+// README.md/.gitignore are skipped when already present so that custom
+// templates (internal/generator/customtemplate) that ship their own keep them.
 func generateGit(root string, data *TemplateData, verbose bool) error {
 	// ── README.md ─────────────────────────────────────────────────────────────
 	readmePath := filepath.Join(root, "README.md")
-	if err := writeTemplate(readmePath, "readme", tmplReadme, data, verbose); err != nil {
-		return fmt.Errorf("gerar README.md: %w", err)
+	if !fileExists(readmePath) {
+		if err := writeTemplate(readmePath, "readme", tmplReadme, data, verbose); err != nil {
+			return fmt.Errorf("gerar README.md: %w", err)
+		}
 	}
 
 	// ── .gitignore ────────────────────────────────────────────────────────────
 	gitignorePath := filepath.Join(root, ".gitignore")
-	if err := writeTemplate(gitignorePath, "gitignore", tmplGitignore, data, verbose); err != nil {
-		return fmt.Errorf("gerar .gitignore: %w", err)
+	if !fileExists(gitignorePath) {
+		if err := writeTemplate(gitignorePath, "gitignore", tmplGitignore, data, verbose); err != nil {
+			return fmt.Errorf("gerar .gitignore: %w", err)
+		}
 	}
 
 	// ── Git init + commit inicial ─────────────────────────────────────────────
@@ -43,6 +50,12 @@ func generateGit(root string, data *TemplateData, verbose bool) error {
 	}
 
 	return nil
+}
+
+// fileExists reports whether path exists as a regular file.
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

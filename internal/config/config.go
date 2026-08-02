@@ -23,11 +23,17 @@ const (
 	// vulkan-start-template, including vklib abstraction, shaders, and all
 	// required dependencies (Vulkan, vk-bootstrap, VMA, GLFW, GLM, ImGui, etc.).
 	TemplateVulkan ProjectTemplate = "vulkan"
+
+	// TemplateCustom generates a project from an external template source
+	// (a local folder or a Git repository), resolved at generation time via
+	// ProjectConfig.TemplateSource. Unlike Blank and Vulkan, it is not
+	// compiled into the binary.
+	TemplateCustom ProjectTemplate = "custom"
 )
 
 // ProjectTemplateOptions returns all available templates.
 func ProjectTemplateOptions() []ProjectTemplate {
-	return []ProjectTemplate{TemplateBlank, TemplateVulkan}
+	return []ProjectTemplate{TemplateBlank, TemplateVulkan, TemplateCustom}
 }
 
 // Label returns the user-friendly template name for display.
@@ -35,6 +41,8 @@ func (t ProjectTemplate) Label() string {
 	switch t {
 	case TemplateVulkan:
 		return "Vulkan  — aplicação Vulkan com vklib, GLFW, GLM e ImGui"
+	case TemplateCustom:
+		return "Custom  — repositório Git ou pasta local"
 	default:
 		return "Em branco — projeto C++ padrão"
 	}
@@ -45,6 +53,8 @@ func (t ProjectTemplate) Description() string {
 	switch t {
 	case TemplateVulkan:
 		return "Template completo: vklib, shaders GLSL→SPIR-V, VulkanMemoryAllocator,\nvk-bootstrap, GLFW, GLM, ImGui e tinyobjloader.\nLayout: two-root  |  Padrão: C++23  |  Pacotes: VCPKG + FetchContent"
+	case TemplateCustom:
+		return "Busca um template externo (owner/repo, URL git, ou pasta local) e\naplica as variáveis do projeto (nome, versão, etc.) aos arquivos encontrados."
 	default:
 		return "Projeto em branco configurável. Escolha layout, tipo, pacotes e IDE."
 	}
@@ -485,7 +495,13 @@ type ProjectConfig struct {
 	// Template defines the base project template to use for generation.
 	// TemplateBlank uses the standard blank project flow.
 	// TemplateVulkan uses the Vulkan-specific template with vklib.
+	// TemplateCustom fetches an external template — see TemplateSource.
 	Template ProjectTemplate
+
+	// TemplateSource holds the raw --template value (a local path, a
+	// "owner/repo[/subdir][#ref]" shorthand, or a full Git URL) when
+	// Template == TemplateCustom. Ignored otherwise.
+	TemplateSource string
 
 	Name string
 

@@ -14,6 +14,7 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [What is generated](#what-is-generated)
+- [Templates](#templates)
 - [Options and flags](#options-and-flags)
 - [Project structure](#project-structure)
 - [Development](#development)
@@ -131,6 +132,10 @@ cpp-gen new meu-projeto \
 # Display version
 cpp-gen version
 
+# List or search discoverable templates (see Templates below)
+cpp-gen templates
+cpp-gen templates raylib
+
 # General help
 cpp-gen --help
 
@@ -204,6 +209,41 @@ ctest --preset test-debug --output-on-failure
 
 ---
 
+## Templates
+
+Beyond the built-in `blank` (procedural) and `vulkan` (embedded) templates, `cpp-gen new
+--template` accepts **any local folder or Git repository**, in the spirit of `npm create
+<template>` / `cargo generate`:
+
+```bash
+cpp-gen new my-app --template ./my-template            # local folder, great while authoring
+cpp-gen new my-app --template owner/repo                # GitHub shorthand
+cpp-gen new my-app --template owner/repo/subdir#v2.0.0  # subdir + tag/branch
+cpp-gen new my-app --template https://github.com/owner/repo.git
+```
+
+Don't want to write one from scratch? Scaffold a working starter template instead:
+
+```bash
+cpp-gen templates create ./my-template                # generates a minimal, ready-to-edit template
+cpp-gen templates create ./my-template --register my-starter   # + registers it locally
+```
+
+Registered templates can also be referenced by a short alias and discovered without knowing
+the source up front:
+
+```bash
+cpp-gen templates                    # list everything registered (local + GitHub registry)
+cpp-gen templates raylib             # search by name/description/tags
+cpp-gen new my-game --template raylib-app
+```
+
+See **[docs/templates.md](docs/templates.md)** for the full authoring guide — variable
+substitution, conditionally including whole files based on user choices (e.g. `--pkg
+vcpkg` vs `--pkg fetchcontent`), testing a template locally, and publishing one for discovery.
+
+---
+
 ## Options and flags
 
 ### `cpp-gen new`
@@ -212,6 +252,7 @@ ctest --preset test-debug --output-on-failure
 |--------------------------|:------------:|---------------------------------------------------------|
 | `--output`, `-o`         | `.`          | Directory where the project folder will be created      |
 | `--no-interactive`, `-n` | `false`      | Disables the TUI; uses only the flags below             |
+| `--template`             | `blank`      | `blank` \| `vulkan` \| local path \| `owner/repo[...]` \| registered alias — see [Templates](#templates) |
 | `--name`                 | —            | Project name (alternative to the positional argument)   |
 | `--description`          | —            | Brief project description                               |
 | `--author`               | —            | Author or organization name                             |

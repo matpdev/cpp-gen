@@ -10,6 +10,7 @@ import (
 	"github.com/matpdev/cpp-gen/internal/config"
 	"github.com/matpdev/cpp-gen/internal/generator"
 	"github.com/matpdev/cpp-gen/internal/localconfig"
+	"github.com/matpdev/cpp-gen/internal/registry"
 	"github.com/matpdev/cpp-gen/internal/tui"
 
 	"github.com/charmbracelet/lipgloss"
@@ -98,7 +99,8 @@ func init() {
 
 	newCmd.Flags().String(
 		"template", "blank",
-		"Template base do projeto: blank | vulkan",
+		"Template base do projeto: blank | vulkan | <fonte custom>\n"+
+			"Fonte custom: caminho local, owner/repo[/subdir][#ref], ou URL git",
 	)
 
 	// ── Technical configuration flags ─────────────────────────────────────────
@@ -180,7 +182,14 @@ func runNew(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Interactive mode: opens the TUI form with the name pre-filled.
-		cfg, err = tui.RunForm(initialName)
+		// --template only pre-selects (and skips) the template step when the
+		// user actually passed it — Changed() distinguishes that from the
+		// flag's "blank" default, which must not silently force the choice.
+		initialTemplate := ""
+		if cmd.Flags().Changed("template") {
+			initialTemplate, _ = cmd.Flags().GetString("template")
+		}
+		cfg, err = tui.RunForm(initialName, initialTemplate)
 		if err != nil {
 			// User cancellation is not an error — just exits silently.
 			if err.Error() == "user aborted" {
@@ -260,6 +269,13 @@ func buildConfigFromFlags(cmd *cobra.Command, initialName string) (*config.Proje
 			return nil, err
 		}
 		cfg.Template = tmpl
+		if tmpl == config.TemplateCustom {
+			source, err := registry.ResolveSource(tmplStr, isVerbose(cmd))
+			if err != nil {
+				return nil, err
+			}
+			cfg.TemplateSource = source
+		}
 	}
 
 	// ── Name ──────────────────────────────────────────────────────────────────
@@ -496,6 +512,9 @@ func parseDebugAdapter(s string) (config.DebugAdapter, error) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parseProjectTemplate converts a string (e.g. "vulkan") to config.ProjectTemplate.
+// Any value that isn't a known built-in name is treated as a custom template
+// source (local path, "owner/repo" shorthand, or Git URL) — the source
+// itself is only validated when the generator actually tries to fetch it.
 func parseProjectTemplate(s string) (config.ProjectTemplate, error) {
 	switch strings.ToLower(s) {
 	case "blank", "":
@@ -503,9 +522,7 @@ func parseProjectTemplate(s string) (config.ProjectTemplate, error) {
 	case "vulkan":
 		return config.TemplateVulkan, nil
 	default:
-		return "", fmt.Errorf(
-			"template inválido %q; valores aceitos: blank, vulkan", s,
-		)
+		return config.TemplateCustom, nil
 	}
 }
 
@@ -531,6 +548,11 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 
 	rows := []string{
 		tui.FormatKeyValue("Template", cfg.Template.Label()),
+	}
+	if cfg.Template == config.TemplateCustom && cfg.TemplateSource != "" {
+		rows = append(rows, tui.FormatKeyValue("Fonte do template", cfg.TemplateSource))
+	}
+	rows = append(rows,
 		tui.FormatKeyValue("Nome", cfg.Name),
 		tui.FormatKeyValue("Descrição", orDash(cfg.Description)),
 		tui.FormatKeyValue("Autor", orDash(cfg.Author)),
@@ -555,7 +577,7 @@ func printProjectSummary(cfg *config.ProjectConfig) {
 			return string(cfg.DebugAdapter)
 		}()),
 		tui.FormatKeyValue("Destino", cfg.ProjectPath()),
-	}
+	)
 
 	fmt.Println(boxStyle.Render(strings.Join(rows, "\n")))
 }

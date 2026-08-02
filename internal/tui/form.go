@@ -10,7 +10,9 @@ import (
 	"unicode"
 
 	"github.com/matpdev/cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/generator/customtemplate"
 	"github.com/matpdev/cpp-gen/internal/localconfig"
+	"github.com/matpdev/cpp-gen/internal/registry"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -26,26 +28,97 @@ import (
 //
 // initialName is pre-filled in the name field when provided via positional
 // argument on the command line (e.g. cpp-gen new my-project).
-func RunForm(initialName string) (*config.ProjectConfig, error) {
+// templateSearchValue is a sentinel templateType value (not a real
+// config.ProjectTemplate) meaning "the user is picking from the template
+// registry" — resolved into TemplateCustom + a concrete source once a
+// catalog entry is chosen in groupTemplateSearch.
+const templateSearchValue = "search"
+
+// templateOptions builds the options for the template selection field.
+// The "Procurar templates..." option only appears when the registry
+// (internal/registry) actually has something to show.
+func templateOptions(hasSearchable bool) []huh.Option[string] {
+	opts := []huh.Option[string]{
+		huh.NewOption(
+			"Em branco  — projeto C++ padrão configurável",
+			string(config.TemplateBlank),
+		),
+		huh.NewOption(
+			"Vulkan     — aplicação Vulkan com vklib, GLFW, GLM, ImGui",
+			string(config.TemplateVulkan),
+		),
+		huh.NewOption(
+			"Custom     — repositório Git ou pasta local",
+			string(config.TemplateCustom),
+		),
+	}
+	if hasSearchable {
+		opts = append(opts, huh.NewOption(
+			"Procurar   — buscar no catálogo de templates (local + GitHub)",
+			templateSearchValue,
+		))
+	}
+	return opts
+}
+
+// RunForm's initialTemplate parameter, when non-empty, pre-selects the
+// template ("blank", "vulkan", a registry alias, or an explicit source) and
+// skips the template selection step entirely — matching what a user expects
+// when they've already passed `cpp-gen new --template X` on the command line.
+func RunForm(initialName, initialTemplate string) (*config.ProjectConfig, error) {
 	cfg := config.Default()
 	cfg.Name = initialName
+
+	// Best-effort template registry lookup (internal/registry): embedded
+	// defaults + local user file, plus the GitHub registry when reachable.
+	// Non-verbose — an unreachable registry should never clutter the form,
+	// it just means the "Procurar templates..." option won't appear.
+	catalog := registry.Load(false)
+	sourceToEntry := make(map[string]registry.Entry, len(catalog.Entries))
+	searchOptions := make([]huh.Option[string], 0, len(catalog.Entries))
+	for _, e := range catalog.Entries {
+		sourceToEntry[e.Source] = e
+		searchOptions = append(searchOptions, huh.NewOption(e.Name, e.Source))
+	}
 
 	// Intermediate string variables for selection fields,
 	// since huh.NewSelect requires *string while config uses custom types.
 	var (
-		templateType     = string(cfg.Template)
-		vulkanUseVCPKG   = true // padrão: VCPKG habilitado para Vulkan
-		standard         = string(cfg.Standard)
-		projectType      = string(cfg.ProjectType)
-		layout           = string(cfg.Layout)
-		pkgManager       = string(cfg.PackageManager)
-		ide              = string(cfg.IDE)
-		clangFormatStyle = string(cfg.ClangFormatStyle)
-		debugAdapter     = string(cfg.DebugAdapter)
-		archStyle        = "flat"
-		archPatterns     []string
-		headerOnly       = false
+		templateType         = string(cfg.Template)
+		templateSource       string
+		templateSearchChoice string
+		vulkanUseVCPKG       = true // padrão: VCPKG habilitado para Vulkan
+		standard             = string(cfg.Standard)
+		projectType          = string(cfg.ProjectType)
+		layout               = string(cfg.Layout)
+		pkgManager           = string(cfg.PackageManager)
+		ide                  = string(cfg.IDE)
+		clangFormatStyle     = string(cfg.ClangFormatStyle)
+		debugAdapter         = string(cfg.DebugAdapter)
+		archStyle            = "flat"
+		archPatterns         []string
+		headerOnly           = false
 	)
+
+	// Resolve --template up front so it can pre-select and skip the template
+	// group below. A bad alias/source fails fast here instead of silently
+	// falling through to an interactive prompt the user didn't ask for.
+	templatePreset := initialTemplate != ""
+	if templatePreset {
+		switch strings.ToLower(initialTemplate) {
+		case "blank":
+			templateType = string(config.TemplateBlank)
+		case "vulkan":
+			templateType = string(config.TemplateVulkan)
+		default:
+			source, err := registry.ResolveSource(initialTemplate, false)
+			if err != nil {
+				return nil, err
+			}
+			templateType = string(config.TemplateCustom)
+			templateSource = source
+		}
+	}
 
 	// ── Group 0: Template Selection ─────────────────────────────────────────────────────
 	groupTemplate := huh.NewGroup(
@@ -56,20 +129,59 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		huh.NewSelect[string]().
 			Title("Template do projeto").
 			DescriptionFunc(func() string {
+				if templateType == templateSearchValue {
+					return fmt.Sprintf("Escolha entre %d template(s) cadastrado(s) localmente ou no registro do GitHub.", len(catalog.Entries))
+				}
 				return config.ProjectTemplate(templateType).Description()
 			}, &templateType).
-			Options(
-				huh.NewOption(
-					"Em branco  — projeto C++ padrão configurável",
-					string(config.TemplateBlank),
-				),
-				huh.NewOption(
-					"Vulkan     — aplicação Vulkan com vklib, GLFW, GLM, ImGui",
-					string(config.TemplateVulkan),
-				),
-			).
+			Options(templateOptions(len(searchOptions) > 0)...).
 			Value(&templateType),
 	)
+
+	// ── Group 0b: Custom Template Source ─────────────────────────────────────
+	groupCustomSource := huh.NewGroup(
+		huh.NewNote().
+			Title("Template Custom").
+			Description("Informe de onde buscar o template. O cpp-gen substitui as variáveis\ndo projeto (nome, versão, etc.) nos arquivos encontrados."),
+
+		huh.NewInput().
+			Title("Fonte do template").
+			Description("Caminho local, owner/repo[/subdir][#ref], ou URL git (https/ssh).").
+			Placeholder("owner/repo ou ./meu-template ou https://github.com/owner/repo.git").
+			Value(&templateSource).
+			Validate(validateTemplateSource),
+	).WithHideFunc(func() bool {
+		return templateType != string(config.TemplateCustom)
+	})
+
+	// ── Group 0c: Template Registry Search ───────────────────────────────────
+	// Only meaningful when there's at least one entry to pick from — built
+	// unconditionally, but simply never added to the form otherwise (see
+	// "Procurar..." option handling in templateOptions).
+	groupTemplateSearch := huh.NewGroup(
+		huh.NewNote().
+			Title("Procurar Templates").
+			Description("Templates cadastrados localmente (~/.config/cpp-gen/templates.json)\ne no registro do GitHub."),
+
+		huh.NewSelect[string]().
+			Title("Escolha um template").
+			DescriptionFunc(func() string {
+				e, ok := sourceToEntry[templateSearchChoice]
+				if !ok {
+					return ""
+				}
+				desc := e.Description
+				if len(e.Tags) > 0 {
+					desc += "\nTags: " + strings.Join(e.Tags, ", ")
+				}
+				desc += "\nFonte: " + e.Source
+				return desc
+			}, &templateSearchChoice).
+			Options(searchOptions...).
+			Value(&templateSearchChoice),
+	).WithHideFunc(func() bool {
+		return templateType != templateSearchValue
+	})
 
 	// ── Group 1: Project Identity ─────────────────────────────────────────────
 	groupIdentity := huh.NewGroup(
@@ -129,7 +241,11 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				huh.NewOption("Header-Only      — add_library(INTERFACE)", string(config.TypeHeaderOnly)),
 			).
 			Value(&projectType),
-	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
+	).WithHideFunc(func() bool {
+		return templateType == string(config.TemplateVulkan) ||
+			templateType == string(config.TemplateCustom) ||
+			templateType == templateSearchValue
+	})
 
 	// ── Group 3: Folder Layout ────────────────────────────────────────────────
 	groupLayout := huh.NewGroup(
@@ -165,7 +281,11 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				),
 			).
 			Value(&layout),
-	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
+	).WithHideFunc(func() bool {
+		return templateType == string(config.TemplateVulkan) ||
+			templateType == string(config.TemplateCustom) ||
+			templateType == templateSearchValue
+	})
 
 	// ── Group 3b: Architecture ────────────────────────────────────────────────
 	groupArchitecture := huh.NewGroup(
@@ -208,7 +328,9 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 			Description("Mantém .hpp e .cpp no mesmo diretório, sem pasta include/ separada.\nAtivado automaticamente para layouts Merged e Flat.").
 			Value(&headerOnly),
 	).WithHideFunc(func() bool {
-		return templateType == string(config.TemplateVulkan)
+		return templateType == string(config.TemplateVulkan) ||
+			templateType == string(config.TemplateCustom) ||
+			templateType == templateSearchValue
 	})
 
 	// ── Group 4: Package Manager ──────────────────────────────────────────────
@@ -226,7 +348,11 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 				huh.NewOption("FetchContent     — CMake FetchContent nativo", string(config.PkgFetchContent)),
 			).
 			Value(&pkgManager),
-	).WithHideFunc(func() bool { return templateType == string(config.TemplateVulkan) })
+	).WithHideFunc(func() bool {
+		return templateType == string(config.TemplateVulkan) ||
+			templateType == string(config.TemplateCustom) ||
+			templateType == templateSearchValue
+	})
 
 	// ── Group 4b: Vulkan — Package Manager ───────────────────────────────────
 	groupVulkanPackages := huh.NewGroup(
@@ -313,8 +439,14 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	)
 
 	// ── Form construction and execution ──────────────────────────────────────
-	form := huh.NewForm(
-		groupTemplate,
+	var groups []*huh.Group
+	if !templatePreset {
+		groups = append(groups, groupTemplate, groupCustomSource)
+		if len(searchOptions) > 0 {
+			groups = append(groups, groupTemplateSearch)
+		}
+	}
+	groups = append(groups,
 		groupIdentity,
 		groupTechnical,
 		groupLayout,
@@ -322,7 +454,9 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 		groupPackages,
 		groupVulkanPackages,
 		groupIDE,
-	).
+	)
+
+	form := huh.NewForm(groups...).
 		WithTheme(buildTheme()).
 		WithWidth(72)
 
@@ -350,7 +484,16 @@ func RunForm(initialName string) (*config.ProjectConfig, error) {
 	cfg.IDE = config.IDE(ide)
 	cfg.ClangFormatStyle = config.ClangFormatStyle(clangFormatStyle)
 	cfg.DebugAdapter = config.DebugAdapter(debugAdapter)
-	cfg.Template = config.ProjectTemplate(templateType)
+	switch templateType {
+	case string(config.TemplateCustom):
+		cfg.Template = config.TemplateCustom
+		cfg.TemplateSource = strings.TrimSpace(templateSource)
+	case templateSearchValue:
+		cfg.Template = config.TemplateCustom
+		cfg.TemplateSource = templateSearchChoice
+	default:
+		cfg.Template = config.ProjectTemplate(templateType)
+	}
 	cfg.ArchStyle = localconfig.ArchStyle(archStyle)
 	cfg.ArchPatterns = archPatterns
 	cfg.HeaderOnly = headerOnly
@@ -419,6 +562,18 @@ func validateProjectName(name string) error {
 	}
 
 	return nil
+}
+
+// validateTemplateSource validates the custom template source field,
+// reusing customtemplate.ParseSource so syntax errors surface immediately
+// in the form instead of only when the generator tries to fetch it.
+func validateTemplateSource(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return errors.New("informe uma fonte de template")
+	}
+	_, err := customtemplate.ParseSource(raw)
+	return err
 }
 
 // reVersion validates the basic SemVer format: MAJOR.MINOR.PATCH (all numeric).

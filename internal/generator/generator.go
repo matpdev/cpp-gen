@@ -22,6 +22,7 @@ import (
 	"unicode"
 
 	"github.com/matpdev/cpp-gen/internal/config"
+	"github.com/matpdev/cpp-gen/internal/generator/customtemplate"
 	"github.com/matpdev/cpp-gen/internal/generator/ide"
 	"github.com/matpdev/cpp-gen/internal/generator/layout"
 	"github.com/matpdev/cpp-gen/internal/generator/packages"
@@ -72,6 +73,12 @@ type TemplateData struct {
 	// When true, the pipeline uses the Vulkan-specific generator instead of
 	// the standard structure/cmake/packages generators.
 	IsVulkanTemplate bool
+
+	// IsCustomTemplate indicates that the project uses an external template
+	// (local folder or Git repository). When true, the pipeline fetches and
+	// renders that template instead of the standard structure/cmake/packages
+	// generators.
+	IsCustomTemplate bool
 
 	// ── Technical configuration ────────────────────────────────────────────────
 
@@ -237,6 +244,13 @@ func (g *Generator) Generate() error {
 			{"Ferramentas Clang", g.runClang},
 			{"Git e metadados do repositório", g.runGit},
 		}
+	} else if g.data.IsCustomTemplate {
+		pipeline = []pipelineStep{
+			{"Template customizado (fetch + substituição)", g.runCustomTemplate},
+			{"Configuração da IDE", g.runIDE},
+			{"Ferramentas Clang", g.runClang},
+			{"Git e metadados do repositório", g.runGit},
+		}
 	} else {
 		pipeline = []pipelineStep{
 			{"Estrutura de pastas e arquivos fonte", g.runStructure},
@@ -360,6 +374,25 @@ func (g *Generator) runVulkanTemplate() error {
 	}, g.verbose)
 }
 
+// runCustomTemplate fetches an external template (local folder or Git
+// repository, resolved from cfg.TemplateSource) and renders it into the
+// project root, substituting project variables in file contents and paths.
+// This step replaces runStructure, runCMake and runPackages, same as Vulkan.
+func (g *Generator) runCustomTemplate() error {
+	src, err := customtemplate.ParseSource(g.cfg.TemplateSource)
+	if err != nil {
+		return err
+	}
+
+	dir, cleanup, err := customtemplate.Fetch(src)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	return customtemplate.Generate(dir, g.root, g.data, g.verbose)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Step report
 // ─────────────────────────────────────────────────────────────────────────────
@@ -403,6 +436,7 @@ func buildTemplateData(cfg *config.ProjectConfig, spec *layout.Spec) *TemplateDa
 
 		// Template
 		IsVulkanTemplate: cfg.Template == config.TemplateVulkan,
+		IsCustomTemplate: cfg.Template == config.TemplateCustom,
 
 		// Technical
 		Standard: string(cfg.Standard),
