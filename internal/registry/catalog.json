@@ -5,6 +5,12 @@
             "description": "Jogo/app simples com raylib — CMake adaptado a VCPKG, FetchContent ou pacote do sistema.",
             "source": "matpdev/cpp-gen/examples/templates/raylib-app",
             "tags": ["game", "raylib", "graphics", "gui"]
+        },
+        {
+            "name": "opengl-app",
+            "description": "Projeto OpenGL básico (GLFW + GLEW): janela, contexto 3.3 core e um triângulo renderizado via shaders.",
+            "source": "matpdev/cpp-gen/examples/templates/opengl-app",
+            "tags": ["graphics", "opengl", "glfw", "glew", "gui"]
         }
     ]
 }

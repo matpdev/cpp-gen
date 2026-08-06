@@ -1,0 +1,8 @@
+{
+    "name": "{{.Name}}",
+    "version": "{{.Version}}",
+    "dependencies": [
+        "glfw3",
+        "glew"
+    ]
+}

@@ -49,19 +49,27 @@ func TestParseCatalogJSON_Invalid(t *testing.T) {
 	}
 }
 
-func TestEmbeddedEntries_IncludesRaylibApp(t *testing.T) {
-	// Guards against the embedded catalog silently going back to empty:
-	// raylib-app must ship in the binary itself (source pointing at the
-	// cpp-gen repo on GitHub) so it's discoverable regardless of install
-	// method (brew, AUR, go install, ...) — it can't rely on a local clone.
+func TestEmbeddedEntries_IncludesExampleTemplates(t *testing.T) {
+	// Guards against the embedded catalog silently losing an entry: each of
+	// these must ship in the binary itself (source pointing at the cpp-gen
+	// repo on GitHub) so they're discoverable regardless of install method
+	// (brew, AUR, go install, ...) — they can't rely on a local clone.
+	want := []string{"raylib-app", "opengl-app"}
+
 	entries := embeddedEntries(false)
+	byName := make(map[string]Entry, len(entries))
 	for _, e := range entries {
-		if e.Name == "raylib-app" {
-			if e.Source == "" {
-				t.Error("raylib-app entry has an empty Source")
-			}
-			return
+		byName[e.Name] = e
+	}
+
+	for _, name := range want {
+		e, ok := byName[name]
+		if !ok {
+			t.Errorf("embeddedEntries() = %+v, want an entry named %q", entries, name)
+			continue
+		}
+		if e.Source == "" {
+			t.Errorf("%q entry has an empty Source", name)
 		}
 	}
-	t.Errorf("embeddedEntries() = %+v, want an entry named raylib-app", entries)
 }
