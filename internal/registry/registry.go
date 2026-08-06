@@ -109,17 +109,20 @@ func Resolve(name string, verbose bool) (Entry, bool) {
 		return Entry{}, false
 	}
 
-	for _, e := range embeddedEntries(verbose) {
-		if strings.ToLower(e.Name) == key {
-			return e, true
-		}
-	}
-
+	// Same override priority as Load (local > embedded), but embedded is
+	// checked before the network-backed GitHub registry so a name that's
+	// already bundled in the binary never needs a network round-trip.
 	localEntries, err := loadLocal()
 	if err != nil {
 		warnf(verbose, "não foi possível carregar templates locais: %v", err)
 	}
 	for _, e := range localEntries {
+		if strings.ToLower(e.Name) == key {
+			return e, true
+		}
+	}
+
+	for _, e := range embeddedEntries(verbose) {
 		if strings.ToLower(e.Name) == key {
 			return e, true
 		}

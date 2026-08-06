@@ -58,12 +58,40 @@ func TestResolve_NotFound(t *testing.T) {
 	}
 }
 
-func TestLoad_LocalOverridesEmbedded(t *testing.T) {
+func TestLoad_MergesLocalWithEmbedded(t *testing.T) {
 	setupLocalCatalog(t, `{"templates": [{"name": "local-only", "description": "só local", "source": "./x"}]}`)
 	t.Setenv(RegistryURLEnv, filepath.Join(t.TempDir(), "does-not-exist.json"))
 
 	catalog := Load(false)
-	if len(catalog.Entries) != 1 || catalog.Entries[0].Name != "local-only" {
-		t.Errorf("Load().Entries = %+v, want single entry named local-only", catalog.Entries)
+
+	names := make(map[string]bool, len(catalog.Entries))
+	for _, e := range catalog.Entries {
+		names[e.Name] = true
+	}
+	if !names["local-only"] {
+		t.Errorf("Load().Entries = %+v, want it to include the local-only entry", catalog.Entries)
+	}
+	if !names["raylib-app"] {
+		t.Errorf("Load().Entries = %+v, want it to still include the embedded raylib-app entry", catalog.Entries)
+	}
+}
+
+func TestLoad_LocalOverridesEmbeddedByName(t *testing.T) {
+	setupLocalCatalog(t, `{"templates": [{"name": "raylib-app", "description": "override local", "source": "./meu-fork"}]}`)
+	t.Setenv(RegistryURLEnv, filepath.Join(t.TempDir(), "does-not-exist.json"))
+
+	catalog := Load(false)
+
+	var found *Entry
+	for i, e := range catalog.Entries {
+		if e.Name == "raylib-app" {
+			found = &catalog.Entries[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("Load().Entries = %+v, want a raylib-app entry", catalog.Entries)
+	}
+	if found.Source != "./meu-fork" {
+		t.Errorf("raylib-app entry Source = %q, want the local override %q", found.Source, "./meu-fork")
 	}
 }

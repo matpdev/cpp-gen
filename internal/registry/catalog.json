@@ -1,3 +1,10 @@
 {
-    "templates": []
+    "templates": [
+        {
+            "name": "raylib-app",
+            "description": "Jogo/app simples com raylib — CMake adaptado a VCPKG, FetchContent ou pacote do sistema.",
+            "source": "matpdev/cpp-gen/examples/templates/raylib-app",
+            "tags": ["game", "raylib", "graphics", "gui"]
+        }
+    ]
 }

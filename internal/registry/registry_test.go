@@ -49,10 +49,19 @@ func TestParseCatalogJSON_Invalid(t *testing.T) {
 	}
 }
 
-func TestEmbeddedEntries_StartsEmpty(t *testing.T) {
-	// Guards the packaging assumption documented in registry.go: the
-	// bundled catalog.json ships empty until maintainers curate entries.
-	if entries := embeddedEntries(false); len(entries) != 0 {
-		t.Errorf("embeddedEntries() = %d entries, want 0 (seed catalog.json is empty by design)", len(entries))
+func TestEmbeddedEntries_IncludesRaylibApp(t *testing.T) {
+	// Guards against the embedded catalog silently going back to empty:
+	// raylib-app must ship in the binary itself (source pointing at the
+	// cpp-gen repo on GitHub) so it's discoverable regardless of install
+	// method (brew, AUR, go install, ...) — it can't rely on a local clone.
+	entries := embeddedEntries(false)
+	for _, e := range entries {
+		if e.Name == "raylib-app" {
+			if e.Source == "" {
+				t.Error("raylib-app entry has an empty Source")
+			}
+			return
+		}
 	}
+	t.Errorf("embeddedEntries() = %+v, want an entry named raylib-app", entries)
 }

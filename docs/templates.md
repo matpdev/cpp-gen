@@ -283,8 +283,10 @@ templates`, the "Procurar templates..." step in the form, and bare-name aliases 
 `--template raylib-app`) is a separate, optional layer on top, backed by
 `internal/registry`. It merges three sources, highest priority last:
 
-1. **Embedded defaults** — bundled in the `cpp-gen` binary, empty by default, curated by
-   maintainers over releases.
+1. **Embedded defaults** — bundled in the `cpp-gen` binary itself
+   (`internal/registry/catalog.json`), curated by maintainers over releases. This is what makes
+   `raylib-app` work out of the box on every install method (Homebrew, AUR, `go install`, …)
+   without needing a local clone of this repo or the GitHub registry to be reachable.
 2. **The GitHub registry** — a JSON file fetched over HTTP, shared by everyone.
 3. **Your local catalog** — a JSON file you edit yourself, on your machine only.
 
@@ -294,10 +296,10 @@ All three use the identical shape:
 {
   "templates": [
     {
-      "name": "raylib-app",
-      "description": "Simple raylib game/app (CMake + VCPKG/FetchContent).",
-      "source": "your-org/raylib-app-template",
-      "tags": ["game", "raylib", "graphics"]
+      "name": "my-cli-tool",
+      "description": "CLI11 + fmt + spdlog starter.",
+      "source": "your-org/my-cli-tool-template",
+      "tags": ["cli"]
     }
   ]
 }
@@ -325,17 +327,32 @@ cat > "$HOME/Library/Application Support/cpp-gen/templates.json" <<'EOF'
 {
   "templates": [
     {
-      "name": "raylib-app",
-      "description": "Simple raylib game/app (CMake + VCPKG/FetchContent).",
-      "source": "/absolute/path/to/raylib-app-template",
-      "tags": ["game", "raylib", "graphics"]
+      "name": "my-cli-tool",
+      "description": "CLI11 + fmt + spdlog starter.",
+      "source": "/absolute/path/to/my-cli-tool-template",
+      "tags": ["cli"]
     }
   ]
 }
 EOF
 
 cpp-gen templates                     # confirm it shows up
-cpp-gen new my-game --template raylib-app
+cpp-gen new my-project --template my-cli-tool
+```
+
+A local entry with the same `name` as an embedded one takes priority over it — handy for
+testing a fork of `raylib-app` locally without touching the binary:
+
+```bash
+cat > "$HOME/Library/Application Support/cpp-gen/templates.json" <<'EOF'
+{
+  "templates": [
+    { "name": "raylib-app", "source": "/path/to/my/raylib-app-fork" }
+  ]
+}
+EOF
+
+cpp-gen new demo --template raylib-app   # now resolves to your fork, not the embedded one
 ```
 
 ### Publish to the shared GitHub registry
